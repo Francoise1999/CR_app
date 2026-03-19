@@ -21,6 +21,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#0e0c0a;--bg2:#16130f;--bg3:#1e1a14;--bg4:#26211a;
@@ -86,6 +89,9 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 .date-nav{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;flex-shrink:0}
 .date-nav-btn{background:none;border:none;color:var(--gold);font-size:18px;cursor:pointer;padding:0 2px;line-height:1}
 .date-display{font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text);text-align:center;min-width:155px}
+.date-picker-input{background:none;border:1px solid var(--borderl);border-radius:var(--rs);color:var(--gold);font-family:'Jost',sans-serif;font-size:11px;padding:3px 6px;cursor:pointer;outline:none;width:36px;overflow:hidden;opacity:.7;transition:opacity .2s}
+.date-picker-input:hover{opacity:1}
+.date-picker-input::-webkit-calendar-picker-indicator{filter:invert(70%) sepia(50%) saturate(500%) hue-rotate(5deg);cursor:pointer;width:16px;height:16px}
 @media(max-width:480px){.date-display{min-width:110px;font-size:12px}.view-title{font-size:22px}}
 
 /* CARDS */
@@ -117,6 +123,9 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 .tg{display:flex;align-items:center;gap:5px;color:var(--tmuted);font-size:13px;flex-wrap:wrap}
 .ti{width:44px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'Jost',sans-serif;font-size:13px;text-align:center;padding:5px;outline:none}
 .ti:focus{border-color:var(--goldd)}
+.nc-btn{background:var(--bg3);border:1px solid var(--borderl);border-radius:var(--rs);color:var(--tdim);font-family:'Jost',sans-serif;font-size:11px;font-weight:600;padding:4px 8px;cursor:pointer;transition:all .2s;letter-spacing:.05em;flex-shrink:0}
+.nc-btn:hover{border-color:var(--gold);color:var(--gold)}
+.nc-btn.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--goldl)}
 
 /* INPUTS */
 .inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'Jost',sans-serif;font-size:13px;padding:7px 10px;outline:none;transition:border-color .2s}
@@ -384,9 +393,6 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 @media(min-width:900px){.user-name{display:block}}
 
 </style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -452,6 +458,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="date-nav">
           <button class="date-nav-btn" id="prevDay">←</button>
           <span class="date-display" id="entryDateDisplay"></span>
+          <input type="date" id="datePickerInput" class="date-picker-input" onchange="jumpToDate(this.value)" title="Choisir une date">
           <button class="date-nav-btn" id="nextDay">→</button>
         </div>
       </div>
@@ -462,7 +469,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
           <div class="card-hd"><div class="badge">1</div><div><div class="card-title">RDQD</div><div class="card-sub">Rencontres Dynamiques & Quotidiennes avec Dieu</div></div></div>
           <div class="card-bd">
             <div class="frow"><label>Rencontres</label><div class="cg"><button class="cb" onclick="adj('rdqd_count',-1)">−</button><input type="number" id="rdqd_count" class="ci" value="0" min="0"><button class="cb" onclick="adj('rdqd_count',1)">+</button></div></div>
-            <div class="frow"><label>Temps méditation</label><div class="tg"><input type="number" id="rdqd_h" class="ti" placeholder="h" min="0" max="23"><span>h</span><input type="number" id="rdqd_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+            <div class="frow"><label>Temps méditation</label><div class="tg"><input type="number" id="rdqd_h" class="ti" placeholder="h" min="0" max="23"><span>h</span><input type="number" id="rdqd_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_rdqd" onclick="toggleNC('rdqd')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
           </div>
         </div>
 
@@ -470,7 +477,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="card">
           <div class="card-hd"><div class="badge">2</div><div><div class="card-title">Prière Seule (PS)</div><div class="card-sub">Temps personnel de prière</div></div></div>
           <div class="card-bd">
-            <div class="frow"><label>Temps total</label><div class="tg"><input type="number" id="ps_h" class="ti" placeholder="h" min="0" max="23"><span>h</span><input type="number" id="ps_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+            <div class="frow"><label>Temps total</label><div class="tg"><input type="number" id="ps_h" class="ti" placeholder="h" min="0" max="23"><span>h</span><input type="number" id="ps_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_ps" onclick="toggleNC('ps')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
             <div class="aspects-section">
               <p class="asp-label">Aspects de prière :</p>
               <div id="ps_aspects_today" class="aspects-today-list"></div>
@@ -519,7 +526,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
           <div class="card-bd">
             <div class="tgl-grp"><button class="tgl-btn" id="paa_oui" onclick="setToggle('paa',true)">Oui</button><button class="tgl-btn tgl-no" id="paa_non" onclick="setToggle('paa',false)">Non</button></div>
             <div id="paa_details" style="display:none;margin-top:12px">
-              <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="paa_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="paa_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+              <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="paa_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="paa_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_paa" onclick="toggleNC('paa')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
               <div style="margin-top:10px">
                 <div class="asp-label">Personnes avec qui j'ai prié :</div>
                 <div id="paa_partners_list" class="aspects-today-list"></div>
@@ -611,7 +618,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
             <div class="tgl-grp"><button class="tgl-btn" id="retreat_oui" onclick="setToggle('retreat',true)">Oui</button><button class="tgl-btn tgl-no" id="retreat_non" onclick="setToggle('retreat',false)">Non</button></div>
             <div id="retreat_details" style="display:none;margin-top:12px">
               <div class="frow-col"><label>Nom / Description</label><input type="text" id="retreat_name" class="inp" placeholder="ex: Retraite de prière mensuelle"></div>
-              <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="retreat_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="retreat_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+              <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="retreat_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="retreat_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_retreat" onclick="toggleNC('retreat')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
               <div class="frow-col"><label>Lieu</label><input type="text" id="retreat_loc_today" class="inp" placeholder="ex: Église, maison, camp..."></div>
               <div class="frow-col"><label>But / Objectif</label><input type="text" id="retreat_but_today" class="inp" placeholder="ex: Chercher Dieu pour la direction..."></div>
             </div>
@@ -1018,15 +1025,22 @@ let db = null, auth = null, currentUser = null;
 let firebaseReady = false, syncTimeout = null, firestoreUnsubscribe = null;
 
 function initFirebase() {
+  // Attendre que les scripts Firebase soient chargés
+  if (typeof firebase === 'undefined') {
+    setTimeout(initFirebase, 100);
+    return;
+  }
   if (FIREBASE_CONFIG.apiKey === "COLLE_TON_API_KEY_ICI") {
-    // Mode hors-ligne : pas de config Firebase
     document.getElementById('auth-screen').style.display = 'none';
     showSyncStatus("Mode local -- configurez Firebase pour la sync", "warn");
     startApp();
     return;
   }
   try {
-    firebase.initializeApp(FIREBASE_CONFIG);
+    // Éviter double initialisation
+    if (!firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
     db   = firebase.firestore();
     auth = firebase.auth();
     auth.onAuthStateChanged(user => {
@@ -1213,7 +1227,34 @@ function startApp() {
   document.getElementById('report_year').value = now.getFullYear();
 }
 
-// ========== RESET ENTRY ==========
+// ========== DATE PICKER ==========
+function jumpToDate(val) {
+  if (!val) return;
+  collectCurrentFormData(); saveCurrentEntry();
+  const [y,m,d] = val.split('-').map(Number);
+  currentDate = new Date(y, m-1, d);
+  loadEntry(currentDate);
+  updateDateDisplay(); renderTodayFields(); renderMonthBooks();
+}
+
+// ========== NC (NON CREDITE) ==========
+// NC fields: stored as todayData.nc_rdqd, nc_ps, nc_paa (boolean)
+function toggleNC(field) {
+  const key = 'nc_' + field;
+  todayData[key] = !todayData[key];
+  renderNCButton(field);
+}
+function renderNCButton(field) {
+  const btn = document.getElementById('nc_' + field);
+  if (!btn) return;
+  const active = !!todayData['nc_' + field];
+  btn.classList.toggle('active', active);
+  btn.title = active ? 'NC actif — ce temps compte pour 0 dans les rapports' : 'Non crédité — cliquer pour activer';
+}
+function renderAllNCButtons() {
+  ['rdqd','ps','paa','retreat'].forEach(f => renderNCButton(f));
+}
+
 function confirmResetEntry() {
   if (!confirm('Effacer toutes les données du formulaire pour cette journée ?\n\n(Les données déjà sauvegardées seront supprimées.)')) return;
   todayData = {};
@@ -1293,20 +1334,26 @@ function getDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth
 
 // ========== HELPERS ==========
 function formatDateFR(date) { return `${DAYS_FR[date.getDay()]} ${date.getDate()} ${MONTHS_FR[date.getMonth()]} ${date.getFullYear()}`; }
-function formatMinutes(m) {
+function formatMinutes(m, nc) {
+  if (nc) return 'NC';
   if (!m||m<=0) return '--';
   const h=Math.floor(m/60), mn=m%60;
   if(h>0&&mn>0) return `${h}h${String(mn).padStart(2,'0')}'`;
   if(h>0) return `${h}h`;
   return `${mn}'`;
 }
+// Returns 0 if NC, otherwise the minutes value — for stats/reports counting
+function countMin(v, field) { return v['nc_'+field] ? 0 : (v[field+'_min']||0); }
 function toMinutes(h,m) { return (parseInt(h)||0)*60+(parseInt(m)||0); }
 function fromMinutes(t) { return { h:Math.floor(t/60), m:t%60 }; }
 function setVal(id,v) { const el=document.getElementById(id); if(el) el.value=v; }
 function updateTopbarDate() { const el=document.getElementById('topbarDate'); if(el) el.textContent = formatDateFR(new Date()); }
 function updateDateDisplay() {
   const isToday = getDateKey(currentDate)===getDateKey(new Date());
-  document.getElementById('entryDateDisplay').textContent = isToday ? `Aujourd'hui — ${formatDateFR(currentDate)}` : formatDateFR(currentDate);
+  const el = document.getElementById('entryDateDisplay');
+  if (el) el.textContent = isToday ? `Aujourd'hui — ${formatDateFR(currentDate)}` : formatDateFR(currentDate);
+  const picker = document.getElementById('datePickerInput');
+  if (picker) picker.value = getDateKey(currentDate);
 }
 function changeDate(delta) {
   collectCurrentFormData(); saveCurrentEntry();
@@ -1411,6 +1458,7 @@ function renderTodayFields() {
   const rt=fromMinutes(todayData.rdqd_min||0); setVal('rdqd_h',rt.h||''); setVal('rdqd_m',rt.m||'');
   const pt=fromMinutes(todayData.ps_min||0); setVal('ps_h',pt.h||''); setVal('ps_m',pt.m||'');
   renderTodayAspects();
+  renderAllNCButtons();
   setToggleDisplay('vm',todayData.vm);
   updateLbSummary();
   setVal('lcc_pages',todayData.lcc_pages||0);
@@ -1801,7 +1849,9 @@ function renderRetreatsView() {
 function collectCurrentFormData() {
   todayData.rdqd_count=parseInt(document.getElementById('rdqd_count').value)||0;
   todayData.rdqd_min=toMinutes(document.getElementById('rdqd_h').value,document.getElementById('rdqd_m').value);
+  todayData.nc_rdqd=!!todayData.nc_rdqd;
   todayData.ps_min=toMinutes(document.getElementById('ps_h').value,document.getElementById('ps_m').value);
+  todayData.nc_ps=!!todayData.nc_ps;
   todayData.bible_selection=JSON.parse(JSON.stringify(bibleSelection));
   todayData.lb_count=countBibleChapters(bibleSelection);
   const prevPages=(allEntries[getDateKey(currentDate)]?.lcc_pages)||0;
@@ -1810,12 +1860,14 @@ function collectCurrentFormData() {
   todayData.lcc_book_id=document.getElementById('lcc_book_select').value;
   if(todayData.lcc_book_id){const book=books.find(b=>b.id===todayData.lcc_book_id);if(book){if(prevBook===todayData.lcc_book_id) book.pagesRead=book.pagesRead-prevPages+todayData.lcc_pages; else book.pagesRead+=todayData.lcc_pages; book.pagesRead=Math.max(0,Math.min(book.pagesRead,book.totalPages)); if(!book.completed&&book.pagesRead>=book.totalPages){book.completed=true;book.completedDate=getDateKey(currentDate);book.readCount=(book.readCount||0)+1;}}}
   todayData.paa_min=toMinutes(document.getElementById('paa_h').value,document.getElementById('paa_m').value);
+  todayData.nc_paa=!!todayData.nc_paa;
   todayData.enseignement_count=parseInt(document.getElementById('enseignement_count').value)||0;
   todayData.evang_count=parseInt(document.getElementById('evang_count').value)||0;
   todayData.traites_count=parseInt(document.getElementById('traites_count').value)||0;
   todayData.don_amount=parseFloat(document.getElementById('don_amount').value)||0;
   todayData.don_note=document.getElementById('don_note').value.trim();
   todayData.retreat_min=toMinutes(document.getElementById('retreat_h').value,document.getElementById('retreat_m').value);
+  todayData.nc_retreat=!!todayData.nc_retreat;
   todayData.retreat_name=document.getElementById('retreat_name').value.trim();
   todayData.retreat_location=(document.getElementById('retreat_loc_today')?.value||'').trim();
   todayData.retreat_but=(document.getElementById('retreat_but_today')?.value||'').trim();
@@ -1862,7 +1914,7 @@ function loadHistory() {
     const chips=[];
     if(entry.rdqd_count>0) chips.push(`<span class="chip g">RDQD: ${entry.rdqd_count}</span>`);
     if(entry.lb_count>0) chips.push(`<span class="chip g">Bible: ${entry.lb_count}</span>`);
-    if(entry.ps_min>0) chips.push(`<span class="chip">PS: ${formatMinutes(entry.ps_min)}</span>`);
+    if(entry.ps_min>0) chips.push(`<span class="chip">PS: ${formatMinutes(entry.ps_min, entry.nc_ps)}</span>`);
     if(entry.vm===true) chips.push(`<span class="chip g">VM ✓</span>`);
     if(entry.vm===false) chips.push(`<span class="chip b">VM ✗</span>`);
     if(entry.confession===true) chips.push(`<span class="chip g">Conf. ✓</span>`);
@@ -1896,7 +1948,7 @@ function loadStats(period,e) {
   document.getElementById('stats-grid').innerHTML=[
     {value:td,label:'Jours enregistrés'},
     {value:sum(v=>v.rdqd_count),label:'RDQD',sub:`Moy: ${(sum(v=>v.rdqd_count)/n).toFixed(1)}/j`},
-    {value:formatMinutes(sum(v=>v.ps_min)),label:'Prière seule',sub:`Moy: ${formatMinutes(Math.round(sum(v=>v.ps_min)/n))}/j`},
+    {value:formatMinutes(sum(v=>countMin(v,'ps'))),label:'Prière seule',sub:`Moy: ${formatMinutes(Math.round(sum(v=>countMin(v,'ps'))/n))}/j`},
     {value:sum(v=>v.lb_count),label:'Chapitres Bible',sub:`Moy: ${(sum(v=>v.lb_count)/n).toFixed(1)}/j`},
     {value:sum(v=>v.lcc_pages),label:'Pages LCC'},
     {value:`${cnt(v=>v.vm===true)}/${td}`,label:'Veilles matinales',sub:`${td?Math.round(cnt(v=>v.vm===true)/td*100):0}%`},
@@ -1914,7 +1966,7 @@ function renderChart(entries) {
   const labels=sorted.map(([k])=>{const[,m,d]=k.split('-');return`${d}/${m}`;});
   const ctx=document.getElementById('mainChart').getContext('2d');
   if(chartInst) chartInst.destroy();
-  chartInst=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Prière (min)',data:sorted.map(([,v])=>v.ps_min||0),borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,.08)',tension:.4,borderWidth:2},{label:'Chapitres',data:sorted.map(([,v])=>v.lb_count||0),borderColor:'#7ab87a',backgroundColor:'rgba(122,184,122,.08)',tension:.4,borderWidth:2},{label:'RDQD',data:sorted.map(([,v])=>v.rdqd_count||0),borderColor:'#cd8050',backgroundColor:'rgba(205,128,80,.08)',tension:.4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8a7d6a',font:{family:'Jost',size:11}}}},scales:{x:{ticks:{color:'#5a5045',font:{family:'Jost',size:10}},grid:{color:'#2e2720'}},y:{ticks:{color:'#5a5045',font:{family:'Jost',size:10}},grid:{color:'#2e2720'}}}}});
+  chartInst=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Prière (min)',data:sorted.map(([,v])=>countMin(v,'ps')),borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,.08)',tension:.4,borderWidth:2},{label:'Chapitres',data:sorted.map(([,v])=>v.lb_count||0),borderColor:'#7ab87a',backgroundColor:'rgba(122,184,122,.08)',tension:.4,borderWidth:2},{label:'RDQD',data:sorted.map(([,v])=>v.rdqd_count||0),borderColor:'#cd8050',backgroundColor:'rgba(205,128,80,.08)',tension:.4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8a7d6a',font:{family:'Jost',size:11}}}},scales:{x:{ticks:{color:'#5a5045',font:{family:'Jost',size:10}},grid:{color:'#2e2720'}},y:{ticks:{color:'#5a5045',font:{family:'Jost',size:10}},grid:{color:'#2e2720'}}}}});
 }
 
 // ========== GLOBAL SEARCH ==========
@@ -1960,9 +2012,9 @@ function buildDailyReport(dateKey, entry) {
   const[y,m,d]=dateKey.split('-').map(Number); const date=new Date(y,m-1,d);
   const dg=goals.daily; const ensGoal=dg.enseignement_count||5; const rdqdGoal=dg.rdqd_count||1; const lbGoal=dg.lb_count||0; const psGoal=dg.ps_min||0;
   const lines=[]; lines.push(formatDateFR(date)); lines.push('');
-  lines.push(`1. RDQD : ${String(entry.rdqd_count||0).padStart(2,'0')}/${String(rdqdGoal).padStart(2,'0')}${entry.rdqd_min>0?' ('+formatMinutes(entry.rdqd_min)+')':''}`);
+  lines.push(`1. RDQD : ${String(entry.rdqd_count||0).padStart(2,'0')}/${String(rdqdGoal).padStart(2,'0')}${(entry.rdqd_min>0||entry.nc_rdqd)?' ('+formatMinutes(entry.rdqd_min, entry.nc_rdqd)+')':''}`);
   lines.push('');
-  lines.push(`2. PS : ${entry.ps_min>0?formatMinutes(entry.ps_min):'—'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
+  lines.push(`2. PS : ${(entry.ps_min>0||entry.nc_ps)?formatMinutes(entry.ps_min, entry.nc_ps):'--'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
   (entry.ps_aspects||[]).forEach(a=>lines.push(`   * ${a.name} : ${a.mins>0?formatMinutes(a.mins):'—'}`));
   lines.push('');
   lines.push(`3. VM : ${entry.vm===true?'Oui':entry.vm===false?'Non':'—'}`);
@@ -1973,7 +2025,7 @@ function buildDailyReport(dateKey, entry) {
   lines.push(`5. LCC : ${entry.lcc_pages||0} pages lues`);
   if(entry.lcc_book_id){const b=books.find(x=>x.id===entry.lcc_book_id);if(b) lines.push(`   * ${b.title}${b.author?'. '+b.author:''} (${b.pagesRead}/${b.totalPages})`);}
   lines.push('');
-  lines.push(`6. PAA : ${entry.paa===true?'Oui'+(entry.paa_min>0?' — '+formatMinutes(entry.paa_min):''):entry.paa===false?'Non':'—'}`);
+  lines.push(`6. PAA : ${entry.paa===true?'Oui'+((entry.paa_min>0||entry.nc_paa)?' -- '+formatMinutes(entry.paa_min, entry.nc_paa):''):entry.paa===false?'Non':'--'}`);
   lines.push('');
   lines.push(`7. Confession des péchés : ${entry.confession===true?'Oui':entry.confession===false?'Non':'—'}`);
   lines.push('');
@@ -1998,8 +2050,8 @@ function buildMonthlyReport(year, month) {
   const lbGoal=goals.monthly.lb_count||0;
   const vmCount=cnt(v=>v.vm===true);
   const ensCount=sum(v=>v.enseignement_count);
-  const totalPs=sum(v=>v.ps_min); const totalPAA=sum(v=>v.paa_min);
-  const totalRdqd=sum(v=>v.rdqd_count); const totalRdqdMin=sum(v=>v.rdqd_min);
+  const totalPs=sum(v=>countMin(v,'ps')); const totalPAA=sum(v=>countMin(v,'paa'));
+  const totalRdqd=sum(v=>v.rdqd_count); const totalRdqdMin=sum(v=>countMin(v,'rdqd'));
   const totalLb=sum(v=>v.lb_count); const totalLcc=sum(v=>v.lcc_pages);
   // Completed books this month
   const monthBooksDone=books.filter(b=>b.completedDate&&b.completedDate.startsWith(mk));
@@ -2057,9 +2109,9 @@ function buildYearlyReport(year) {
   const fastStr=[fp>0?`${fp} partiel${fp>1?'s':''}`:null,fc>0?`${fc} complet${fc>1?'s':''}`:null,fa>0?`${fa} absolu${fa>1?'s':''}`:null].filter(Boolean).join(', ')||'Aucun';
   const lines=[];
   lines.push(`Récapitulatif annuel ${year}`);
-  lines.push(`1. RDQD : ${sum(v=>v.rdqd_count)} en ${formatMinutes(sum(v=>v.rdqd_min))}`);
-  lines.push(`2. P.S : ${formatMinutes(sum(v=>v.ps_min))}`);
-  lines.push(`3. Prière en groupe : ~${formatMinutes(sum(v=>v.paa_min))}`);
+  lines.push(`1. RDQD : ${sum(v=>v.rdqd_count)} en ${formatMinutes(sum(v=>countMin(v,'rdqd')))}`);
+  lines.push(`2. P.S : ${formatMinutes(sum(v=>countMin(v,'ps')))}`);
+  lines.push(`3. Prière en groupe : ~${formatMinutes(sum(v=>countMin(v,'paa')))}`);
   lines.push(`4. LB : ${sum(v=>v.lb_count)} chapitres lus`);
   if(atReads>0) lines.push(`     - ${String(atReads).padStart(2,'0')} lecture${atReads>1?'s':''} de l'Ancien Testament`);
   if(ntReads>0) lines.push(`     - ${String(ntReads).padStart(2,'0')} lecture${ntReads>1?'s':''} du Nouveau Testament`);
@@ -2130,7 +2182,7 @@ function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
 
 // ========== START ==========
-document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('load', init);
 
 </script>
 </body>
