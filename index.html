@@ -971,7 +971,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
   <div class="modal" onclick="event.stopPropagation()">
     <h3 class="modal-title">Nouveau sujet d'importunité</h3>
     <div class="frow-col"><label>Sujet de prière *</label><input type="text" id="imp_subject" class="inp" placeholder="ex: Seigneur bénis-moi avec un stage"></div>
-    <div class="frow-col" style="margin-top:8px"><label>Objectif total (minutes)</label><div class="tg"><input type="number" id="imp_goal_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="imp_goal_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+    <div class="frow-col" style="margin-top:8px"><label>Objectif total (nombre)</label><input type="number" id="imp_goal_count" class="inp" placeholder="ex: 1000" min="1"></div>
     <div class="frow-col" style="margin-top:8px"><label>Note / contexte (optionnel)</label><textarea id="imp_note" class="inp" style="height:60px;resize:vertical" placeholder="Contexte, versets d'appui..."></textarea></div>
     <div class="modal-actions"><button class="modal-btn cancel" onclick="closeModal('modal-imp-add')">Annuler</button><button class="modal-btn confirm" onclick="saveImpSubject()">Créer</button></div>
   </div>
@@ -980,11 +980,11 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 <!-- Log importunité time -->
 <div class="modal-overlay" id="modal-imp-log" style="display:none" onclick="closeModal('modal-imp-log')">
   <div class="modal" onclick="event.stopPropagation()">
-    <h3 class="modal-title">Ajouter du temps — <span id="imp-log-subject-name" style="color:var(--goldl)"></span></h3>
+    <h3 class="modal-title">Ajouter — <span id="imp-log-subject-name" style="color:var(--goldl)"></span></h3>
     <input type="hidden" id="imp_log_id">
     <div class="frow-col"><label>Date</label><input type="date" id="imp_log_date" class="inp"></div>
-    <div class="frow" style="margin-top:8px"><label>Temps prié</label><div class="tg"><input type="number" id="imp_log_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="imp_log_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
-    <div class="frow-col" style="margin-top:8px"><label>Note (optionnel)</label><input type="text" id="imp_log_note" class="inp" placeholder="ex: veille de prière, jeûne..."></div>
+    <div class="frow-col" style="margin-top:8px"><label>Nombre ajouté aujourd'hui</label><input type="number" id="imp_log_count" class="inp" placeholder="ex: 50" min="1"></div>
+    <div class="frow-col" style="margin-top:8px"><label>Note (optionnel)</label><input type="text" id="imp_log_note" class="inp" placeholder="ex: prière du matin..."></div>
     <div class="modal-actions"><button class="modal-btn cancel" onclick="closeModal('modal-imp-log')">Annuler</button><button class="modal-btn confirm" onclick="saveImpLog()">Ajouter</button></div>
   </div>
 </div>
@@ -2040,15 +2040,15 @@ function renderRetreatsView() {
 // ========== IMPORTUNITES ==========
 function openAddImpModal() {
   ['imp_subject','imp_note'].forEach(id=>setVal(id,''));
-  setVal('imp_goal_h',''); setVal('imp_goal_m','');
+  setVal('imp_goal_count','');
   document.getElementById('modal-imp-add').style.display='flex';
   setTimeout(()=>document.getElementById('imp_subject').focus(),100);
 }
 function saveImpSubject() {
   const subject=document.getElementById('imp_subject').value.trim(); if(!subject) return;
-  const goalMin=toMinutes(document.getElementById('imp_goal_h').value,document.getElementById('imp_goal_m').value);
+  const goalCount=parseInt(document.getElementById('imp_goal_count').value)||0;
   const note=document.getElementById('imp_note').value.trim();
-  importunites.push({id:'imp_'+Date.now(),subject,goalMin,note,logs:[],createdDate:getDateKey(new Date())});
+  importunites.push({id:'imp_'+Date.now(),subject,goalCount,note,logs:[],createdDate:getDateKey(new Date())});
   saveToStorage(); renderImportunites(); closeModal('modal-imp-add');
 }
 function deleteImpSubject(id) {
@@ -2061,19 +2061,19 @@ function openImpLogModal(id) {
   setVal('imp_log_id',id);
   document.getElementById('imp-log-subject-name').textContent=imp.subject;
   setVal('imp_log_date',getDateKey(new Date()));
-  setVal('imp_log_h',''); setVal('imp_log_m',''); setVal('imp_log_note','');
+  setVal('imp_log_count',''); setVal('imp_log_note','');
   document.getElementById('modal-imp-log').style.display='flex';
-  setTimeout(()=>document.getElementById('imp_log_h').focus(),100);
+  setTimeout(()=>document.getElementById('imp_log_count').focus(),100);
 }
 function saveImpLog() {
   const id=document.getElementById('imp_log_id').value;
   const imp=importunites.find(x=>x.id===id); if(!imp) return;
-  const mins=toMinutes(document.getElementById('imp_log_h').value,document.getElementById('imp_log_m').value);
-  if(mins<=0) return;
+  const count=parseInt(document.getElementById('imp_log_count').value)||0;
+  if(count<=0) return;
   const date=document.getElementById('imp_log_date').value||getDateKey(new Date());
   const note=document.getElementById('imp_log_note').value.trim();
   if(!imp.logs) imp.logs=[];
-  imp.logs.push({id:'log_'+Date.now(),date,mins,note});
+  imp.logs.push({id:'log_'+Date.now(),date,count,note});
   saveToStorage(); renderImportunites(); closeModal('modal-imp-log');
 }
 function deleteImpLog(impId,logId) {
@@ -2083,41 +2083,40 @@ function deleteImpLog(impId,logId) {
 }
 function renderImportunites() {
   const c=document.getElementById('imp-list'); if(!c) return;
-  if(importunites.length===0){c.innerHTML='<p style="color:var(--tmuted);font-style:italic">Aucun sujet d\'importunité. Cliquez "+ Ajouter un sujet".</p>';return;}
-  c.innerHTML=importunites.map(imp=>{
-    const total=((imp.logs||[]).reduce((a,l)=>a+l.mins,0));
-    const pct=imp.goalMin>0?Math.min(100,Math.round(total/imp.goalMin*100)):0;
-    const done=imp.goalMin>0&&total>=imp.goalMin;
-    const logsHtml=(imp.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`
-      <div class="imp-log-item">
-        <span class="imp-log-date">${l.date}</span>
-        <span class="imp-log-time">${formatMinutes(l.mins)}${l.note?' — '+l.note:''}</span>
-        <button class="imp-log-del" onclick="deleteImpLog('${imp.id}','${l.id}')">✕</button>
-      </div>`).join('');
-    return `<div class="imp-card${done?' imp-complete':''}">
-      <div class="imp-card-header">
-        <div>
-          <div class="imp-subject">${imp.subject}</div>
-          <div class="imp-goal-txt">${imp.goalMin>0?'Objectif : '+formatMinutes(imp.goalMin):'Pas d\'objectif fixé'}${imp.note?' — '+imp.note:''}</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          ${done?'<span class="imp-badge">✓ Objectif atteint</span>':''}
-          <button class="bact-btn del" onclick="deleteImpSubject('${imp.id}')">✕</button>
-        </div>
-      </div>
-      <div class="imp-body">
-        <div class="imp-stats">
-          <span>Total prié : <strong>${formatMinutes(total)||'--'}</strong></span>
-          ${imp.goalMin>0?`<span>Progression : <strong>${pct}%</strong></span>`:''}
-          <span>${(imp.logs||[]).length} session${(imp.logs||[]).length!==1?'s':''}</span>
-        </div>
-        ${imp.goalMin>0?`<div class="imp-pb-outer"><div class="imp-pb-inner" style="width:${pct}%"></div></div>`:''}
-        ${logsHtml?`<div class="imp-log">${logsHtml}</div>`:''}
-        <div class="imp-add-row">
-          <button class="save-btn small" onclick="openImpLogModal('${imp.id}')">+ Ajouter du temps</button>
-        </div>
-      </div>
-    </div>`;
+  if(importunites.length===0){c.innerHTML='<p style="color:var(--tmuted);font-style:italic">Aucun sujet. Cliquez "+ Ajouter un sujet".</p>';return;}
+  c.innerHTML=importunites.map(function(imp){
+    const total=(imp.logs||[]).reduce(function(a,l){return a+(l.count||(l.mins||0));},0);
+    const pct=imp.goalCount>0?Math.min(100,Math.round(total/imp.goalCount*100)):0;
+    const done=imp.goalCount>0&&total>=imp.goalCount;
+    const goalTxt=imp.goalCount>0?'Objectif : '+imp.goalCount:"Pas d'objectif fixé";
+    let logsHtml='';
+    (imp.logs||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(l){
+      const cnt=l.count||(l.mins||0);
+      logsHtml+='<div class="imp-log-item">'
+        +'<span class="imp-log-date">'+l.date+'</span>'
+        +'<span class="imp-log-time">+'+cnt+(l.note?' — '+l.note:'')+'</span>'
+        +'<button class="imp-log-del" data-iid="'+imp.id+'" data-lid="'+l.id+'" onclick="deleteImpLog(this.dataset.iid,this.dataset.lid)">✕</button>'
+        +'</div>';
+    });
+    const pbHtml=imp.goalCount>0?'<div class="imp-pb-outer"><div class="imp-pb-inner" style="width:'+pct+'%"></div></div>':'';
+    const doneBadge=done?'<span class="imp-badge">✓ Objectif atteint</span>':'';
+    return '<div class="imp-card'+(done?' imp-complete':'')+'">'
+      +'<div class="imp-card-header">'
+        +'<div><div class="imp-subject">'+imp.subject+'</div>'
+        +'<div class="imp-goal-txt">'+goalTxt+(imp.note?' — '+imp.note:'')+'</div></div>'
+        +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">'+doneBadge
+        +'<button class="bact-btn del" data-id="'+imp.id+'" onclick="deleteImpSubject(this.dataset.id)">✕</button></div>'
+      +'</div>'
+      +'<div class="imp-body">'
+        +'<div class="imp-stats">'
+          +'<span>Total : <strong>'+total+'</strong></span>'
+          +(imp.goalCount>0?'<span>Progression : <strong>'+pct+'%</strong></span>':'')
+          +'<span>'+(imp.logs||[]).length+' session'+((imp.logs||[]).length!==1?'s':'')+'</span>'
+        +'</div>'
+        +pbHtml
+        +(logsHtml?'<div class="imp-log">'+logsHtml+'</div>':'')
+        +'<div class="imp-add-row"><button class="save-btn small" data-id="'+imp.id+'" onclick="openImpLogModal(this.dataset.id)">+ Ajouter</button></div>'
+      +'</div></div>';
   }).join('');
 }
 
@@ -2296,10 +2295,10 @@ function buildDailyReport(dateKey, entry) {
   const lines=[]; lines.push(formatDateFR(date)); lines.push('');
   lines.push(`1. RDQD : ${String(entry.rdqd_count||0).padStart(2,'0')}/${String(rdqdGoal).padStart(2,'0')}${(entry.rdqd_min>0||entry.nc_rdqd)?' ('+formatMinutes(entry.rdqd_min, entry.nc_rdqd)+')':''}`);
   lines.push('');
-  lines.push(`2. PS : ${(entry.ps_min>0||entry.nc_ps)?formatMinutes(entry.ps_min, entry.nc_ps):'--'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
+  lines.push(`2. PS : ${(entry.ps_min>0||entry.nc_ps)?formatMinutes(entry.ps_min, entry.nc_ps):'00'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
   (entry.ps_aspects||[]).forEach(a=>lines.push(`   * ${a.name} : ${a.nc?'NC':(a.mins>0?formatMinutes(a.mins):'--')}`));
   lines.push('');
-  lines.push(`3. VM : ${entry.vm===true?'Oui':entry.vm===false?'Non':'—'}`);
+  lines.push(`3. VM : ${entry.vm===true?'Oui':entry.vm===false?'Non':'00'}`);
   lines.push('');
   const bibleText=entry.bible_selection?bibleSelectionToText(entry.bible_selection):'';
   lines.push(`4. LB : ${entry.lb_count||0}${lbGoal>0?'/'+lbGoal:''} chapitres lus${bibleText?' ('+bibleText+')':''}`);
@@ -2307,15 +2306,21 @@ function buildDailyReport(dateKey, entry) {
   lines.push(`5. LCC : ${entry.lcc_pages||0} pages lues`);
   if(entry.lcc_book_id){const b=books.find(x=>x.id===entry.lcc_book_id);if(b) lines.push(`   * ${b.title}${b.author?'. '+b.author:''} (${b.pagesRead}/${b.totalPages})`);}
   lines.push('');
-  lines.push(`6. PAA : ${entry.paa===true?'Oui'+((entry.paa_min>0||entry.nc_paa)?' -- '+formatMinutes(entry.paa_min, entry.nc_paa):''):entry.paa===false?'Non':'--'}`);
+  lines.push(`6. PAA : ${entry.paa===true?'Oui'+((entry.paa_min>0||entry.nc_paa)?' -- '+formatMinutes(entry.paa_min, entry.nc_paa):''):entry.paa===false?'Non':'00'}`);
   lines.push('');
-  lines.push(`7. Confession des péchés : ${entry.confession===true?'Oui':entry.confession===false?'Non':'—'}`);
+  lines.push(`7. Confession des péchés : ${entry.confession===true?'Oui':entry.confession===false?'Non':'00'}`);
   lines.push('');
-  lines.push(`8. Écoute Enseignement : ${entry.enseignement_count>0?`Oui (${String(entry.enseignement_count).padStart(2,'0')}/${String(ensGoal).padStart(2,'0')})`:`Non (00/${String(ensGoal).padStart(2,'0')})`}`);
+  const ens8 = entry.enseignement_count>0
+    ? 'Oui ('+String(entry.enseignement_count).padStart(2,'0')+'/'+String(ensGoal).padStart(2,'0')+')'
+    : 'Non (00/'+String(ensGoal).padStart(2,'0')+')';
+  lines.push('8. Écoute Enseignement : '+ens8);
   lines.push('');
-  lines.push(`9. Évangélisation : ${entry.evang_count>0?`Oui — ${entry.evang_count} personne${entry.evang_count>1?'s':''}` :'Non'}`);
+  const evang9 = entry.evang_count>0
+    ? 'Oui — '+entry.evang_count+' personne'+(entry.evang_count>1?'s':'')
+    : 'Non';
+  lines.push('9. Évangélisation : '+evang9);
   lines.push('');
-  lines.push(`10. Traités distribués : ${entry.traites_count>0?entry.traites_count:'Non'}`);
+  lines.push(`10. Traités distribués : ${entry.traites_count>0?entry.traites_count:0}`);
   if(entry.verse_text){lines.push('');lines.push(`« ${entry.verse_text} »`);if(entry.verse_ref) lines.push(entry.verse_ref+' ✝');}
   return lines.join('\n');
 }
