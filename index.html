@@ -1910,12 +1910,75 @@ function showBookProgress(id) {
 }
 function renderMonthBooks() {
   const c=document.getElementById('lcc_month_books'); if(!c) return;
-  const mk=`${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-  const ids=new Set(); Object.entries(allEntries).filter(([k])=>k.startsWith(mk)).forEach(([,e])=>{if(e.lcc_book_id) ids.add(e.lcc_book_id);});
-  if(ids.size===0){c.innerHTML='';return;}
-  const bks=[...ids].map(id=>books.find(b=>b.id===id)).filter(Boolean);
-  c.innerHTML=`<p style="font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Livres ce mois :</p>`+bks.map(b=>`<div class="mb-book">${b.title}${b.author?' — '+b.author:''}</div>`).join('');
+  const mk=currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
+  const bks = getActiveBooksForDate(mk+'-01');
+  if(bks.length===0){c.innerHTML='';return;}
+  const label='<p style="font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Livres actifs ce mois :</p>';
+  c.innerHTML=label+bks.map(function(b){
+    const done = b.completedDate && b.completedDate.startsWith(mk);
+    return '<div class="mb-book">'
+      +(done?'<span style="color:var(--greenl)">✓ </span>':'')
+      +b.title+(b.author?' — '+b.author:'')
+      +' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>'
+      +'</div>';
+  }).join('');
 }
+// Returns the list of "active" books for a given date's month:
+// - Books touched (any page read) during this month, whether finished or not
+// - PLUS books that were started in a previous month but not yet finished
+//   by the end of that previous month (they carry over until completed)
+function getActiveBooksForDate(dateKey) {
+  const [y, m] = dateKey.split('-').map(Number);
+  const mk = y + '-' + String(m).padStart(2,'0');
+
+  // Collect all book IDs that had pages logged in ANY entry up to end of this month
+  const bookTouchedInMonth = new Set();
+  const bookTouchedBefore  = new Set();
+
+  Object.entries(allEntries).forEach(([k, e]) => {
+    if (!e.lcc_book_id) return;
+    if (k.startsWith(mk)) {
+      bookTouchedInMonth.add(e.lcc_book_id);
+    } else if (k < mk) {
+      bookTouchedBefore.add(e.lcc_book_id);
+    }
+  });
+
+  const result = [];
+
+  // Books touched this month — always include
+  bookTouchedInMonth.forEach(id => {
+    const b = books.find(x => x.id === id);
+    if (b) result.push(b);
+  });
+
+  // Books touched before this month — include only if NOT completed before this month starts
+  bookTouchedBefore.forEach(id => {
+    if (bookTouchedInMonth.has(id)) return; // already in list
+    const b = books.find(x => x.id === id);
+    if (!b) return;
+    // If completed, check if completedDate is within this month or later
+    if (b.completed && b.completedDate) {
+      const compMk = b.completedDate.substring(0,7);
+      if (compMk < mk) return; // completed before this month — don't carry over
+    }
+    // Not yet completed as of this month → carry over
+    result.push(b);
+  });
+
+  // Deduplicate and sort: completed this month first, then in-progress
+  const seen = new Set();
+  const deduped = result.filter(b => { if (seen.has(b.id)) return false; seen.add(b.id); return true; });
+  deduped.sort((a, b) => {
+    const aDoneThisMo = a.completedDate && a.completedDate.startsWith(mk);
+    const bDoneThisMo = b.completedDate && b.completedDate.startsWith(mk);
+    if (aDoneThisMo && !bDoneThisMo) return -1;
+    if (!aDoneThisMo && bDoneThisMo) return 1;
+    return 0;
+  });
+  return deduped;
+}
+
 function openAddBookModal() {
   ['book_title','book_author_manual','book_total_pages'].forEach(id=>setVal(id,''));
   setVal('book_current_pages','0'); setVal('book_author_select','');
@@ -2303,8 +2366,24 @@ function buildDailyReport(dateKey, entry) {
   const bibleText=entry.bible_selection?bibleSelectionToText(entry.bible_selection):'';
   lines.push(`4. LB : ${entry.lb_count||0}${lbGoal>0?'/'+lbGoal:''} chapitres lus${bibleText?' ('+bibleText+')':''}`);
   lines.push('');
-  lines.push(`5. LCC : ${entry.lcc_pages||0} pages lues`);
-  if(entry.lcc_book_id){const b=books.find(x=>x.id===entry.lcc_book_id);if(b) lines.push(`   * ${b.title}${b.author?'. '+b.author:''} (${b.pagesRead}/${b.totalPages})`);}
+  const pagesLus = entry.lcc_pages||0;
+  lines.push('5. LCC : '+pagesLus+' page'+(pagesLus!==1?'s':'')+' lues');
+  // Show all active books for this month (read this month or carried over)
+  const activeBooks = getActiveBooksForDate(dateKey);
+  if (activeBooks.length > 0) {
+    activeBooks.forEach(function(b) {
+      const mk2 = dateKey.substring(0,7);
+      const finishedThisMo = b.completedDate && b.completedDate.startsWith(mk2);
+      // Show pages read AT THE TIME of this entry or current pages
+      lines.push('   * '+b.title+(b.author?'. '+b.author:'')
+        +' ('+b.pagesRead+'/'+b.totalPages+')'
+        +(finishedThisMo?' ✓':''));
+    });
+  } else if (entry.lcc_book_id) {
+    const bk = books.find(function(x){return x.id===entry.lcc_book_id;});
+    if (bk) lines.push('   * '+bk.title+(bk.author?'. '+bk.author:'')
+      +' ('+bk.pagesRead+'/'+bk.totalPages+')');
+  }
   lines.push('');
   lines.push(`6. PAA : ${entry.paa===true?'Oui'+((entry.paa_min>0||entry.nc_paa)?' -- '+formatMinutes(entry.paa_min, entry.nc_paa):''):entry.paa===false?'Non':'00'}`);
   lines.push('');
@@ -2356,8 +2435,16 @@ function buildMonthlyReport(year, month) {
   lines.push(`  2. P.S : ${formatMinutes(totalPs)}${psGoal>0?'/'+formatMinutes(psGoal*Math.ceil(n/30)):''}`);
   lines.push(`  3. Prière en groupe : ${totalPAA>0?formatMinutes(totalPAA):'—'}`);
   lines.push(`  4. LB : ${totalLb}${lbGoal>0?'/'+lbGoal:''} chapitres`);
-  lines.push(`  5. LCC : ${monthBooksDone.length} livre${monthBooksDone.length!==1?'s':''} terminé${monthBooksDone.length!==1?'s':''}`);
-  monthBooksDone.forEach(b=>lines.push(`      * ${b.title}. ${b.author||''}`));
+  const inProgressBooks = getActiveBooksForDate(mk+'-01').filter(function(b){
+    return !b.completedDate || !b.completedDate.startsWith(mk);
+  });
+  lines.push('  5. LCC : '+monthBooksDone.length+' livre'+(monthBooksDone.length!==1?'s':'')+' terminé'+(monthBooksDone.length!==1?'s':''));
+  monthBooksDone.forEach(function(b){lines.push('      * '+b.title+(b.author?'. '+b.author:''));});
+  if(inProgressBooks.length>0){
+    lines.push('       En cours :');
+    inProgressBooks.forEach(function(b){lines.push('       ~ '+b.title+(b.author?'. '+b.author:'')
+      +' ('+b.pagesRead+'/'+b.totalPages+')');});
+  }
   if(retreatCount>0){
     lines.push(`  6. Retraite : ${String(retreatCount).padStart(2,'0')}/${String(retreatCount).padStart(2,'0')}`);
     monthRetreats.forEach(r=>lines.push(`     - ${r.name||'Retraite'}${r.duration>0?' de '+formatMinutes(r.duration):''}${r.location?' — '+r.location:''}${r.but?' — But: '+r.but:''}`));
