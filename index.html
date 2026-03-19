@@ -1,3 +1,16 @@
+<!-- 
+=================================================================
+  JOURNAL SPIRITUEL — Configuration Firebase
+=================================================================
+  Pour synchroniser entre appareils :
+  1. Va sur https://console.firebase.google.com
+  2. Crée un projet (gratuit)
+  3. Firestore Database > Créer une base de données > Mode test
+  4. Paramètres du projet > Tes applications > </> Web app
+  5. Copie firebaseConfig et colle les valeurs dans le code JS
+     (cherche "COLLE_TON_API_KEY_ICI" dans le fichier)
+=================================================================
+-->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -196,6 +209,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 
 /* SAVE */
 .save-row{display:flex;gap:10px;flex-wrap:wrap}
+.reset-btn{background:var(--bg3);border:1px solid var(--red);border-radius:var(--rs);color:var(--redl);font-family:'Jost',sans-serif;font-size:13px;padding:10px 18px;cursor:pointer;transition:all .2s}
+.reset-btn:hover{background:rgba(138,74,74,.15)}
 .save-btn{background:linear-gradient(135deg,var(--goldd),var(--gold));border:none;border-radius:var(--rs);color:var(--bg);font-family:'Jost',sans-serif;font-size:14px;font-weight:600;padding:10px 22px;cursor:pointer;transition:opacity .2s,transform .1s}
 .save-btn:hover{opacity:.9;transform:translateY(-1px)}
 .save-btn.small{padding:7px 13px;font-size:12px}
@@ -342,9 +357,53 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:99px}
 
+
+/* SYNC STATUS */
+.sync-status{font-size:10px;padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0;font-family:'Jost',sans-serif;letter-spacing:.03em}
+.sync-ok{background:rgba(90,138,90,.15);color:#7ab87a;border:1px solid #5a8a5a}
+.sync-warn{background:rgba(201,168,76,.1);color:#c9a84c;border:1px solid #7d6530}
+.sync-pending{background:rgba(74,106,138,.1);color:#7aaac8;border:1px solid #4a6a8a;animation:pulse 1.5s infinite}
+.sync-error{background:rgba(138,74,74,.15);color:#c07070;border:1px solid #8a4a4a}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+/* AUTH */
+.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.auth-card{background:var(--bg2);border:1px solid var(--borderl);border-radius:var(--r);padding:40px 32px;text-align:center;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.auth-cross{font-size:40px;color:var(--gold);margin-bottom:10px}
+.auth-title{font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--goldl);margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--tmuted);margin-bottom:28px;line-height:1.6}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px 20px;background:#fff;border:none;border-radius:var(--rs);color:#3c4043;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:box-shadow .2s}
+.google-btn:hover{box-shadow:0 2px 16px rgba(0,0,0,.35)}
+.auth-note{font-size:11px;color:var(--tdim);margin-top:14px;line-height:1.6}
+.auth-err{font-size:12px;color:var(--redl);margin-top:10px;min-height:18px}
+/* USER IN TOPBAR */
+.user-bar{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.user-avatar{width:26px;height:26px;border-radius:50%;border:1px solid var(--borderl);object-fit:cover}
+.user-name{font-size:11px;color:var(--tmuted);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none}
+.signout-btn{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--tdim);font-size:10px;padding:3px 8px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.signout-btn:hover{border-color:var(--red);color:var(--redl)}
+@media(min-width:900px){.user-name{display:block}}
+
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-cross">✝</div>
+    <div class="auth-title">Journal Spirituel</div>
+    <div class="auth-sub">Connecte-toi pour accéder à tes données sur tous tes appareils.</div>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continuer avec Google
+    </button>
+    <div class="auth-note">Tes données sont privées et liées à ton compte Google uniquement.</div>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
 
 <header class="topbar">
   <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
@@ -354,7 +413,13 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
     <span class="cross-icon">✝</span>
     <span class="brand-name">Journal Spirituel</span>
   </div>
-  <div class="topbar-date" id="topbarDate"></div>
+  <div id="sync-status" class="sync-status sync-ok" style="margin-left:auto"></div>
+  <span class="topbar-date" id="topbarDate"></span>
+  <div class="user-bar" id="user-bar" style="display:none">
+    <img class="user-avatar" id="user-avatar" src="" alt="">
+    <span class="user-name" id="user-name"></span>
+    <button class="signout-btn" onclick="signOut()">Déconnexion</button>
+  </div>
 </header>
 
 <div class="layout">
@@ -450,10 +515,20 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 
         <!-- 6 PAA -->
         <div class="card">
-          <div class="card-hd"><div class="badge">6</div><div><div class="card-title">Prière avec les Autres (PAA)</div></div></div>
+          <div class="card-hd"><div class="badge">6</div><div><div class="card-title">Prière avec les Autres (PAA)</div><div class="card-sub">Les noms ne s'affichent pas dans les CR</div></div></div>
           <div class="card-bd">
             <div class="tgl-grp"><button class="tgl-btn" id="paa_oui" onclick="setToggle('paa',true)">Oui</button><button class="tgl-btn tgl-no" id="paa_non" onclick="setToggle('paa',false)">Non</button></div>
-            <div id="paa_details" style="display:none;margin-top:12px"><div class="tg"><input type="number" id="paa_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="paa_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+            <div id="paa_details" style="display:none;margin-top:12px">
+              <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="paa_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="paa_m" class="ti" placeholder="min" min="0" max="59"><span>min</span></div></div>
+              <div style="margin-top:10px">
+                <div class="asp-label">Personnes avec qui j'ai prié :</div>
+                <div id="paa_partners_list" class="aspects-today-list"></div>
+                <div style="display:flex;gap:8px;margin-top:6px">
+                  <input type="text" id="paa_partner_input" class="inp" placeholder="Nom de la personne..." style="flex:1" onkeydown="if(event.key==='Enter') addPaaPartner()">
+                  <button class="small-btn" onclick="addPaaPartner()">+ Ajouter</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -557,6 +632,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
       <div class="save-row">
         <button class="save-btn" onclick="saveEntry()">💾 Sauvegarder</button>
         <button class="prev-btn" onclick="showDailyPreview()">👁 Aperçu rapport</button>
+        <button class="reset-btn" onclick="confirmResetEntry()">🔄 Réinitialiser</button>
       </div>
       <div id="save-feedback" class="save-fb" style="display:none"></div>
     </div>
@@ -922,6 +998,155 @@ const NT_TOTAL = BIBLE_BOOKS.filter(b=>b.testament==='NT').reduce((a,b)=>a+b.cha
 
 </script>
 <script>
+
+// ========== FIREBASE CONFIG ==========
+// ÉTAPE 1 : Va sur https://console.firebase.google.com
+// ÉTAPE 2 : Crée un projet > Firestore Database > Mode test
+// ÉTAPE 3 : Authentication > Sign-in method > Active "Google"
+// ÉTAPE 4 : Paramètres du projet > Tes applications > </> Web > Copie firebaseConfig
+// ÉTAPE 5 : Colle tes valeurs ci-dessous
+const FIREBASE_CONFIG = {
+  apiKey: "COLLE_TON_API_KEY_ICI",
+  authDomain: "COLLE_TON_AUTH_DOMAIN_ICI",
+  projectId: "COLLE_TON_PROJECT_ID_ICI",
+  storageBucket: "COLLE_TON_STORAGE_BUCKET_ICI",
+  messagingSenderId: "COLLE_TON_SENDER_ID_ICI",
+  appId: "COLLE_TON_APP_ID_ICI"
+};
+
+let db = null, auth = null, currentUser = null;
+let firebaseReady = false, syncTimeout = null, firestoreUnsubscribe = null;
+
+function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey === "COLLE_TON_API_KEY_ICI") {
+    // Mode hors-ligne : pas de config Firebase
+    document.getElementById('auth-screen').style.display = 'none';
+    showSyncStatus("Mode local -- configurez Firebase pour la sync", "warn");
+    startApp();
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db   = firebase.firestore();
+    auth = firebase.auth();
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        showUserBar(user);
+        document.getElementById('auth-screen').style.display = 'none';
+        startListening(user.uid);
+      } else {
+        currentUser = null;
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('user-bar').style.display = 'none';
+        if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
+      }
+    });
+  } catch(e) {
+    console.error("Firebase init error:", e);
+    document.getElementById('auth-screen').style.display = 'none';
+    showSyncStatus("Erreur Firebase -- mode local", "error");
+    startApp();
+  }
+}
+
+function signInWithGoogle() {
+  document.getElementById('auth-err').textContent = '';
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err => {
+    document.getElementById('auth-err').textContent = 'Erreur : ' + err.message;
+  });
+}
+
+function signOut() {
+  if (confirm('Se déconnecter ?')) auth.signOut();
+}
+
+function showUserBar(user) {
+  const bar = document.getElementById('user-bar');
+  const avatar = document.getElementById('user-avatar');
+  const name = document.getElementById('user-name');
+  if (user.photoURL) avatar.src = user.photoURL;
+  else avatar.style.display = 'none';
+  name.textContent = user.displayName || user.email || '';
+  bar.style.display = 'flex';
+}
+
+function startListening(uid) {
+  firebaseReady = true;
+  showSyncStatus("Connexion...", "pending");
+  startApp();
+  firestoreUnsubscribe = db.collection("journals").doc(uid).onSnapshot(
+    doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats"];
+        let changed = false;
+        KEYS.forEach(k => {
+          if (data[k] !== undefined) {
+            const remote = JSON.stringify(data[k]);
+            if (remote !== localStorage.getItem(k)) {
+              localStorage.setItem(k, JSON.stringify(data[k]));
+              changed = true;
+            }
+          }
+        });
+        if (changed) {
+          loadFromStorage();
+          renderTodayFields();
+          renderMonthBooks();
+          loadBooksDropdown();
+          renderBooksView();
+          renderMasterAspects();
+          renderVersesView();
+          renderAuthorsView();
+          renderEvangelisedView();
+          renderRetreatsView();
+        }
+        showSyncStatus("Synchronise -- " + new Date().toLocaleTimeString('fr-FR'), "ok");
+      } else {
+        syncToFirebase(); // premiere utilisation
+      }
+    },
+    err => {
+      console.error("Firestore listen error:", err);
+      showSyncStatus("Hors ligne -- donnees locales", "warn");
+    }
+  );
+}
+
+function syncToFirebase() {
+  if (!firebaseReady || !db || !currentUser) return;
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    const data = {
+      sj_entries:  JSON.parse(localStorage.getItem("sj_entries")  || "{}"),
+      sj_books:    JSON.parse(localStorage.getItem("sj_books")    || "[]"),
+      sj_goals:    JSON.parse(localStorage.getItem("sj_goals")    || "{}"),
+      sj_aspects:  JSON.parse(localStorage.getItem("sj_aspects")  || "[]"),
+      sj_verses:   JSON.parse(localStorage.getItem("sj_verses")   || "[]"),
+      sj_authors:  JSON.parse(localStorage.getItem("sj_authors")  || "[]"),
+      sj_evang:    JSON.parse(localStorage.getItem("sj_evang")    || "[]"),
+      sj_retreats: JSON.parse(localStorage.getItem("sj_retreats") || "[]"),
+      lastUpdated: new Date().toISOString()
+    };
+    showSyncStatus("Synchronisation...", "pending");
+    db.collection("journals").doc(currentUser.uid).set(data)
+      .then(() => showSyncStatus("Synchronise -- " + new Date().toLocaleTimeString('fr-FR'), "ok"))
+      .catch(err => {
+        console.error("Sync error:", err);
+        showSyncStatus("Erreur sync -- sauvegarde locale OK", "error");
+      });
+  }, 1500);
+}
+
+function showSyncStatus(msg, type) {
+  const el = document.getElementById("sync-status");
+  if (!el) return;
+  el.textContent = msg;
+  el.className = "sync-status sync-" + (type || "ok");
+}
+
 // ========== STATE ==========
 let currentDate = new Date(); currentDate.setHours(0,0,0,0);
 let todayData = {}, allEntries = {}, books = [], goals = {daily:{},monthly:{}};
@@ -938,22 +1163,7 @@ const MONTHS_FR_CAP = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet
 
 // ========== INIT ==========
 function init() {
-  loadFromStorage();
-  updateTopbarDate();
-  updateDateDisplay();
-  renderTodayFields();
-  loadBooksDropdown();
-  renderMonthBooks();
-  loadGoalsForm();
-  renderBooksView();
-  renderMasterAspects();
-  renderVersesView();
-  renderAuthorsView();
-  renderEvangelisedView();
-  renderRetreatsView();
-  loadVerseDropdown();
-  loadAuthorsDropdown();
-
+  // Attach nav & global listeners immediately (UI is ready)
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const view = btn.dataset.view;
@@ -972,19 +1182,75 @@ function init() {
       if (view==='retreats') renderRetreatsView();
     });
   });
-
   document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
   document.getElementById('nextDay').addEventListener('click', () => changeDate(1));
+  document.addEventListener('keydown', e => { if (e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.style.display='none'); });
+  setInterval(updateTopbarDate, 60000);
+  // Firebase handles the rest (shows auth screen or calls startApp)
+  initFirebase();
+}
 
+function startApp() {
+  loadFromStorage();
+  updateTopbarDate();
+  updateDateDisplay();
+  renderTodayFields();
+  loadBooksDropdown();
+  renderMonthBooks();
+  loadGoalsForm();
+  renderBooksView();
+  renderMasterAspects();
+  renderVersesView();
+  renderAuthorsView();
+  renderEvangelisedView();
+  renderRetreatsView();
+  loadVerseDropdown();
+  loadAuthorsDropdown();
   const now = new Date();
   document.getElementById('history_month').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('report_date').value = getDateKey(now);
   document.getElementById('report_month').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('report_year').value = now.getFullYear();
-
-  setInterval(updateTopbarDate, 60000);
-  document.addEventListener('keydown', e => { if (e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.style.display='none'); });
 }
+
+// ========== RESET ENTRY ==========
+function confirmResetEntry() {
+  if (!confirm('Effacer toutes les données du formulaire pour cette journée ?\n\n(Les données déjà sauvegardées seront supprimées.)')) return;
+  todayData = {};
+  bibleSelection = {};
+  const key = getDateKey(currentDate);
+  delete allEntries[key];
+  saveToStorage();
+  syncToFirebase();
+  renderTodayFields();
+  updateLbSummary();
+  const fb = document.getElementById('save-feedback');
+  fb.textContent = 'Formulaire réinitialisé.';
+  fb.style.display = 'block';
+  setTimeout(() => fb.style.display = 'none', 2500);
+}
+
+// ========== PAA PARTNERS ==========
+function addPaaPartner() {
+  const inp = document.getElementById('paa_partner_input');
+  const name = (inp.value || '').trim();
+  if (!name) return;
+  if (!todayData.paa_partners) todayData.paa_partners = [];
+  todayData.paa_partners.push(name);
+  inp.value = '';
+  renderPaaPartners();
+}
+function removePaaPartner(idx) {
+  todayData.paa_partners.splice(idx, 1);
+  renderPaaPartners();
+}
+function renderPaaPartners() {
+  const c = document.getElementById('paa_partners_list'); if (!c) return;
+  const partners = todayData.paa_partners || [];
+  if (partners.length === 0) { c.innerHTML = '<p style="font-size:12px;color:var(--tdim)">Aucune personne ajoutée</p>'; return; }
+  c.innerHTML = partners.map((p,i) => `<div class="asp-item"><span class="asp-name">${p}</span><button class="asp-del" onclick="removePaaPartner(${i})">✕</button></div>`).join('');
+}
+
 
 // ========== MENU ==========
 function toggleMenu() {
@@ -1008,14 +1274,15 @@ function loadFromStorage() {
   loadEntry(currentDate);
 }
 function saveToStorage() {
-  localStorage.setItem('sj_entries',   JSON.stringify(allEntries));
-  localStorage.setItem('sj_books',     JSON.stringify(books));
-  localStorage.setItem('sj_goals',     JSON.stringify(goals));
-  localStorage.setItem('sj_aspects',   JSON.stringify(masterAspects));
-  localStorage.setItem('sj_verses',    JSON.stringify(savedVerses));
-  localStorage.setItem('sj_authors',   JSON.stringify(authors));
-  localStorage.setItem('sj_evang',     JSON.stringify(evangelised));
-  localStorage.setItem('sj_retreats',  JSON.stringify(retreats));
+  localStorage.setItem("sj_entries",   JSON.stringify(allEntries));
+  localStorage.setItem("sj_books",     JSON.stringify(books));
+  localStorage.setItem("sj_goals",     JSON.stringify(goals));
+  localStorage.setItem("sj_aspects",   JSON.stringify(masterAspects));
+  localStorage.setItem("sj_verses",    JSON.stringify(savedVerses));
+  localStorage.setItem("sj_authors",   JSON.stringify(authors));
+  localStorage.setItem("sj_evang",     JSON.stringify(evangelised));
+  localStorage.setItem("sj_retreats",  JSON.stringify(retreats));
+  syncToFirebase();
 }
 function loadEntry(date) {
   const key = getDateKey(date);
@@ -1036,7 +1303,7 @@ function formatMinutes(m) {
 function toMinutes(h,m) { return (parseInt(h)||0)*60+(parseInt(m)||0); }
 function fromMinutes(t) { return { h:Math.floor(t/60), m:t%60 }; }
 function setVal(id,v) { const el=document.getElementById(id); if(el) el.value=v; }
-function updateTopbarDate() { document.getElementById('topbarDate').textContent = formatDateFR(new Date()); }
+function updateTopbarDate() { const el=document.getElementById('topbarDate'); if(el) el.textContent = formatDateFR(new Date()); }
 function updateDateDisplay() {
   const isToday = getDateKey(currentDate)===getDateKey(new Date());
   document.getElementById('entryDateDisplay').textContent = isToday ? `Aujourd'hui — ${formatDateFR(currentDate)}` : formatDateFR(currentDate);
@@ -1151,6 +1418,7 @@ function renderTodayFields() {
   setToggleDisplay('paa',todayData.paa);
   document.getElementById('paa_details').style.display=todayData.paa?'block':'none';
   const pat=fromMinutes(todayData.paa_min||0); setVal('paa_h',pat.h||''); setVal('paa_m',pat.m||'');
+  renderPaaPartners();
   setToggleDisplay('confession',todayData.confession);
   setVal('enseignement_count',todayData.enseignement_count||0);
   renderTeachingList();
@@ -1840,7 +2108,20 @@ function exportToCSV() {
 function exportToPDF() {
   const text=document.getElementById('report-output')._reportText||'';
   const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport Spirituel</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"><style>body{font-family:'Cormorant Garamond',serif;font-size:14px;line-height:1.9;color:#1a1208;padding:40px;max-width:680px;margin:0 auto}pre{white-space:pre-wrap;font-family:inherit}h1{font-size:20px;color:#7d6530;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:18px}@media print{body{padding:16px}}</style></head><body><h1>Journal Spirituel</h1><pre>${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre><script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
+  win.document.write(`<!-- 
+=================================================================
+  JOURNAL SPIRITUEL — Configuration Firebase
+=================================================================
+  Pour synchroniser entre appareils :
+  1. Va sur https://console.firebase.google.com
+  2. Crée un projet (gratuit)
+  3. Firestore Database > Créer une base de données > Mode test
+  4. Paramètres du projet > Tes applications > </> Web app
+  5. Copie firebaseConfig et colle les valeurs dans le code JS
+     (cherche "COLLE_TON_API_KEY_ICI" dans le fichier)
+=================================================================
+-->
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport Spirituel</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"><style>body{font-family:'Cormorant Garamond',serif;font-size:14px;line-height:1.9;color:#1a1208;padding:40px;max-width:680px;margin:0 auto}pre{white-space:pre-wrap;font-family:inherit}h1{font-size:20px;color:#7d6530;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:18px}@media print{body{padding:16px}}</style></head><body><h1>Journal Spirituel</h1><pre>${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre><script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
   win.document.close();
 }
 
