@@ -350,6 +350,11 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 .sr-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;font-size:13px}
 .sr-item .sr-title{color:var(--text);font-weight:500}
 .sr-item .sr-sub{color:var(--tmuted);font-size:11px;margin-top:3px}
+.sr-author-card{padding:12px 14px}
+.sr-author-section{margin-top:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--rs)}
+.sr-author-cat{font-size:11px;color:var(--gold);font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.sr-author-item{font-size:12px;color:var(--text);padding:3px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
+.sr-author-item:last-child{border-bottom:none}
 .sr-item mark{background:rgba(201,168,76,.3);color:var(--goldl);border-radius:2px}
 .sr-empty{color:var(--tdim);font-style:italic;font-size:13px;padding:20px 0;text-align:center}
 
@@ -1276,6 +1281,18 @@ function init() {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.getElementById('view-' + view).classList.add('active');
       closeSidebarOnMobile();
+      if (view==='today') {
+        // Always go back to real today when clicking Aujourd'hui
+        const realToday = new Date(); realToday.setHours(0,0,0,0);
+        if (getDateKey(currentDate) !== getDateKey(realToday)) {
+          try { collectCurrentFormData(); } catch(e) {}
+          saveCurrentEntry();
+          currentDate = realToday;
+          loadEntry(currentDate);
+          bibleSelection = todayData.bible_selection || {};
+          updateDateDisplay(); renderTodayFields(); renderMonthBooks();
+        }
+      }
       if (view==='history') loadHistory();
       if (view==='stats') loadStats(statsPeriod,null);
       if (view==='books') renderBooksView();
@@ -1342,6 +1359,11 @@ function renderNCButton(field) {
   const active = !!todayData['nc_' + field];
   btn.classList.toggle('active', active);
   btn.title = active ? 'NC actif — ce temps compte pour 0 dans les rapports' : 'Non crédité — cliquer pour activer';
+  // Dim time inputs for this field when NC active
+  const hEl = document.getElementById(field+'_h');
+  const mEl = document.getElementById(field+'_m');
+  if (hEl) { hEl.style.opacity = active?'0.35':'1'; hEl.disabled = active; }
+  if (mEl) { mEl.style.opacity = active?'0.35':'1'; mEl.disabled = active; }
 }
 function renderAllNCButtons() {
   ['rdqd','ps','paa','retreat'].forEach(f => renderNCButton(f));
@@ -2229,7 +2251,20 @@ function saveEntry() {
 
 // ========== GOALS ==========
 const GOALS_DAILY=[{id:'rdqd_count',label:'RDQD — Rencontres / jour'},{id:'rdqd_min',label:'RDQD — Méditation (min)'},{id:'ps_min',label:'Prière seule (min)'},{id:'lb_count',label:'Chapitres Bible / jour'},{id:'lcc_pages',label:'Pages LCC / jour'},{id:'enseignement_count',label:'Enseignements / mois'},{id:'evang_count',label:'Évangélisation / jour'},{id:'traites_count',label:'Traités / jour'},{id:'vm_count',label:'Veilles matinales / mois'}];
-const GOALS_MONTHLY=[{id:'lb_count',label:'Chapitres Bible ce mois'},{id:'lcc_pages',label:'Pages LCC ce mois'},{id:'evang_count',label:'Évangélisation ce mois'},{id:'traites_count',label:'Traités ce mois'},{id:'enseignement_count',label:'Enseignements ce mois'},{id:'don_amount',label:'Dons à Dieu ce mois ($)'},{id:'ps_min',label:'Prière seule ce mois (min)'}];
+const GOALS_MONTHLY=[
+  {id:'lb_count',       label:'Chapitres Bible ce mois'},
+  {id:'lcc_books',      label:'Livres LCC à lire ce mois (nombre)'},
+  {id:'lcc_pages',      label:'Pages LCC ce mois'},
+  {id:'evang_count',    label:'Évangélisation ce mois'},
+  {id:'traites_count',  label:'Traités ce mois'},
+  {id:'enseignement_count', label:'Enseignements ce mois'},
+  {id:'don_amount',     label:'Dons à Dieu ce mois ($)'},
+  {id:'ps_min',         label:'Prière seule ce mois (min)'},
+  {id:'paa_min',        label:'Prière avec les autres ce mois (min)'},
+  {id:'vm_count',       label:'Veilles matinales ce mois (nombre)'},
+  {id:'retreat_count',  label:'Retraites ce mois (nombre)'},
+  {id:'fast_count',     label:'Jours de jeûne ce mois (nombre)'},
+];
 function loadGoalsForm() {
   const dg=document.getElementById('daily-goals-grid'); const mg=document.getElementById('monthly-goals-grid');
   if(dg) dg.innerHTML=GOALS_DAILY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_d_${f.id}" value="${goals.daily[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
@@ -2327,7 +2362,38 @@ function globalSearch() {
   const sEnt=document.getElementById('srch_entries')?.checked;
   let html='';
   if(sBooks){const res=books.filter(b=>b.title.toLowerCase().includes(q)||(b.author||'').toLowerCase().includes(q));if(res.length>0){html+=`<div class="sr-group-title">📚 Livres (${res.length})</div>`;html+=res.map(b=>`<div class="sr-item"><div class="sr-title">${hl(b.title)}</div><div class="sr-sub">${hl(b.author||'')} — ${b.pagesRead}/${b.totalPages} p.</div></div>`).join('');}}
-  if(sAuth){const res=authors.filter(a=>a.name.toLowerCase().includes(q));if(res.length>0){html+=`<div class="sr-group-title">🎙 Auteurs (${res.length})</div>`;html+=res.map(a=>`<div class="sr-item"><div class="sr-title">${hl(a.name)}</div></div>`).join('');}}
+  if(sAuth){
+    const res=authors.filter(a=>a.name.toLowerCase().includes(q));
+    if(res.length>0){
+      html+='<div class="sr-group-title">🎙 Auteurs ('+res.length+')</div>';
+      html+=res.map(function(a){
+        // Find all books by this author
+        const authorBooks = books.filter(b=>(b.author||'').toLowerCase()===a.name.toLowerCase());
+        // Find all teachings by this author across all entries
+        const teachingSet = new Set();
+        Object.values(allEntries).forEach(e=>(e.teachings||[]).forEach(t=>{
+          if(t.authorId===a.id || (t.authorName||'').toLowerCase()===a.name.toLowerCase()) teachingSet.add(t.title);
+        }));
+        const teachings = [...teachingSet];
+        let detail = '';
+        if(authorBooks.length>0){
+          detail+='<div class="sr-author-section"><span class="sr-author-cat">📚 Livres ('+authorBooks.length+')</span>';
+          detail+=authorBooks.map(b=>'<div class="sr-author-item">'
+            +'<span>'+hl(b.title)+'</span>'
+            +'<span style="color:var(--gold);font-size:10px">'+b.pagesRead+'/'+b.totalPages+' p.'+(b.completed?' ✓':'')+'</span>'
+            +'</div>').join('');
+          detail+='</div>';
+        }
+        if(teachings.length>0){
+          detail+='<div class="sr-author-section"><span class="sr-author-cat">🎧 Enseignements ('+teachings.length+')</span>';
+          detail+=teachings.map(t=>'<div class="sr-author-item">'+hl(t)+'</div>').join('');
+          detail+='</div>';
+        }
+        if(!detail) detail='<div class="sr-sub">Aucun livre ou enseignement enregistré</div>';
+        return '<div class="sr-item sr-author-card"><div class="sr-title">'+hl(a.name)+'</div>'+detail+'</div>';
+      }).join('');
+    }
+  }
   if(sEvang){const res=evangelised.filter(p=>p.name.toLowerCase().includes(q)||(p.notes||'').toLowerCase().includes(q)||(p.lieu||'').toLowerCase().includes(q)||(p.contact||'').toLowerCase().includes(q));if(res.length>0){html+=`<div class="sr-group-title">🌱 Personnes évangélisées (${res.length})</div>`;html+=res.map(p=>`<div class="sr-item"><div class="sr-title">${hl(p.name)}</div><div class="sr-sub">${p.date||''} ${p.lieu?'— '+hl(p.lieu):''} ${p.status?'— '+p.status:''}</div>${p.notes?`<div class="sr-sub">${hl(p.notes)}</div>`:''}</div>`).join('');}}
   if(sVerses){const res=savedVerses.filter(v=>v.text.toLowerCase().includes(q)||(v.ref||'').toLowerCase().includes(q));if(res.length>0){html+=`<div class="sr-group-title">✝ Versets (${res.length})</div>`;html+=res.map(v=>`<div class="sr-item"><div class="sr-title">${hl(v.ref||'')}</div><div class="sr-sub">${hl(v.text.slice(0,100))}</div></div>`).join('');}}
   if(sAsp){const res=masterAspects.filter(a=>a.name.toLowerCase().includes(q));if(res.length>0){html+=`<div class="sr-group-title">🙏 Aspects de prière (${res.length})</div>`;html+=res.map(a=>`<div class="sr-item"><div class="sr-title">${hl(a.name)}</div></div>`).join('');}}
