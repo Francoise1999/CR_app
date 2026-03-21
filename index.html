@@ -2475,19 +2475,34 @@ function loadStats(period,e) {
   const vals=entries.map(([,v])=>v); const n=vals.length||1;
   const sum=(fn)=>vals.reduce((a,v)=>a+(fn(v)||0),0); const cnt=(fn)=>vals.filter(fn).length;
   const td=entries.length;
+  // Compute period month key for retreats
+  const statsMk = (period==='month') ? (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'))
+    : (period==='custom' && customMk) ? customMk : '';
+  const retreatCountStats = statsMk
+    ? (retreats||[]).filter(r=>r.date&&r.date.startsWith(statsMk)).length
+    : (retreats||[]).length;
+  const retreatMinStats = statsMk
+    ? (retreats||[]).filter(r=>r.date&&r.date.startsWith(statsMk)).reduce((a,r)=>a+(r.duration||0),0)
+    : (retreats||[]).reduce((a,r)=>a+(r.duration||0),0);
+  const totalEns = sum(v=>v.enseignement_count);
+  const ensGoalStats = goals.monthly.enseignement_count || goals.daily.enseignement_count || 0;
   document.getElementById('stats-grid').innerHTML=[
     {value:td,label:'Jours enregistrés'},
-    {value:sum(v=>v.rdqd_count),label:'RDQD',sub:`Moy: ${(sum(v=>v.rdqd_count)/n).toFixed(1)}/j`},
-    {value:formatMinutes(sum(v=>countMin(v,'ps'))),label:'Prière seule',sub:`Moy: ${formatMinutes(Math.round(sum(v=>countMin(v,'ps'))/n))}/j`},
-    {value:sum(v=>v.lb_count),label:'Chapitres Bible',sub:`Moy: ${(sum(v=>v.lb_count)/n).toFixed(1)}/j`},
+    {value:sum(v=>v.rdqd_count),label:'RDQD',sub:'Moy: '+(sum(v=>v.rdqd_count)/n).toFixed(1)+'/j'},
+    {value:formatMinutes(sum(v=>countMin(v,'ps'))),label:'Prière seule',sub:'Moy: '+formatMinutes(Math.round(sum(v=>countMin(v,'ps'))/n))+'/j'},
+    {value:sum(v=>v.lb_count),label:'Chapitres Bible',sub:'Moy: '+(sum(v=>v.lb_count)/n).toFixed(1)+'/j'},
     {value:sum(v=>v.lcc_pages),label:'Pages LCC'},
-    {value:`${cnt(v=>v.vm===true)}/${td}`,label:'Veilles matinales',sub:`${td?Math.round(cnt(v=>v.vm===true)/td*100):0}%`},
-    {value:`${cnt(v=>v.confession===true)}/${td}`,label:'Confessions'},
+    {value:cnt(v=>v.vm===true)+(td?'/'+td:''),label:'Veilles matinales',sub:td?Math.round(cnt(v=>v.vm===true)/td*100)+'%':''},
+    {value:cnt(v=>v.confession===true)+(td?'/'+td:''),label:'Confessions'},
+    {value:totalEns+(ensGoalStats>0?' / '+ensGoalStats:''),label:'Enseignements écoutés',sub:ensGoalStats>0?Math.round(totalEns/ensGoalStats*100)+'%':''},
+    {value:retreatCountStats+(retreatMinStats>0?' ('+formatMinutes(retreatMinStats)+')':''),label:'Retraites'},
     {value:sum(v=>v.evang_count),label:'Évangélisation'},
     {value:sum(v=>v.traites_count),label:'Traités'},
     {value:cnt(v=>v.fast&&v.fast!=='aucun'),label:'Jours de jeûne'},
-    {value:`$${sum(v=>v.don_amount||0).toFixed(2)}`,label:'Dons à Dieu'},
-  ].map(s=>`<div class="stat-card"><div class="sv">${s.value}</div><div class="sl">${s.label}</div>${s.sub?`<div class="ssub">${s.sub}</div>`:''}</div>`).join('');
+    {value:'$'+sum(v=>v.don_amount||0).toFixed(2),label:'Dons à Dieu'},
+  ].map(function(s){
+    return '<div class="stat-card"><div class="sv">'+s.value+'</div><div class="sl">'+s.label+'</div>'+(s.sub?'<div class="ssub">'+s.sub+'</div>':'')+'</div>';
+  }).join('');
   renderChart(entries);
   // Show goals comparison panel
   renderStatsVsGoals(entries, period, customMk);
@@ -2613,14 +2628,9 @@ function buildDailyReport(dateKey, entry) {
   const[y,m,d]=dateKey.split('-').map(Number); const date=new Date(y,m-1,d);
   const dg=goals.daily; const ensGoal=dg.enseignement_count||5; const rdqdGoal=dg.rdqd_count||1; const lbGoal=dg.lb_count||0; const psGoal=dg.ps_min||0;
   const lines=[]; lines.push(formatDateFR(date)); lines.push('');
-  const rdqdMin = entry.nc_rdqd ? 0 : (entry.rdqd_min||0);
+  // Total time = sum of all sessions (already stored in rdqd_min)
   const rdqdTimeStr = (entry.rdqd_min>0||entry.nc_rdqd)?' ('+formatMinutes(entry.rdqd_min, entry.nc_rdqd)+')':'';
   lines.push('1. RDQD : '+String(entry.rdqd_count||0).padStart(2,'0')+'/'+String(rdqdGoal).padStart(2,'0')+rdqdTimeStr);
-  // Show individual sessions with their verses
-  (entry.rdqd_sessions||[]).forEach(function(s,i){
-    const sessTime = s.mins>0 ? ' ('+formatMinutes(s.mins)+')' : '';
-    lines.push('   - Rencontre '+(i+1)+sessTime+(s.verse?' — '+s.verse:''));
-  });
   lines.push('');
   lines.push(`2. PS : ${(entry.ps_min>0||entry.nc_ps)?formatMinutes(entry.ps_min, entry.nc_ps):'00'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
   (entry.ps_aspects||[]).forEach(a=>lines.push(`   * ${a.name} : ${a.nc?'NC':(a.mins>0?formatMinutes(a.mins):'--')}`));
@@ -2649,15 +2659,24 @@ function buildDailyReport(dateKey, entry) {
       +' ('+bk.pagesRead+'/'+bk.totalPages+')');
   }
   lines.push('');
-  const paaTitleStr = entry.paa_title ? ' — '+entry.paa_title : '';
   const paaDurStr = (entry.paa_min>0||entry.nc_paa) ? ' ('+formatMinutes(entry.paa_min, entry.nc_paa)+')' : '';
-  lines.push('6. PAA : '+(entry.paa===true?'Oui'+paaTitleStr+paaDurStr:entry.paa===false?'Non':'00'));
+  lines.push('6. PAA : '+(entry.paa===true?'Oui'+paaDurStr:entry.paa===false?'Non':'00'));
   lines.push('');
   lines.push(`7. Confession des péchés : ${entry.confession===true?'Oui':entry.confession===false?'Non':'00'}`);
   lines.push('');
-  const ens8 = entry.enseignement_count>0
-    ? 'Oui ('+String(entry.enseignement_count).padStart(2,'0')+'/'+String(ensGoal).padStart(2,'0')+')'
-    : 'Non (00/'+String(ensGoal).padStart(2,'0')+')';
+  // Cumul mensuel des enseignements jusqu'à ce jour inclus
+  const ensMk = dateKey.substring(0,7);
+  const ensCumul = Object.entries(allEntries)
+    .filter(function(kv){ return kv[0].startsWith(ensMk) && kv[0]<=dateKey; })
+    .reduce(function(a,kv){ return a+(kv[1].enseignement_count||0); }, 0);
+  // Ajoute le compte du jour courant si c'est aujourd'hui (non encore sauvegardé)
+  const ensTodayKey = dateKey;
+  const ensAlreadySaved = allEntries[ensTodayKey] && allEntries[ensTodayKey].enseignement_count!==undefined;
+  const ensTodayCumul = ensAlreadySaved ? ensCumul : (ensCumul + (entry.enseignement_count||0));
+  const ensGoalFinal = goals.monthly.enseignement_count || ensGoal;
+  const ens8 = ensTodayCumul>0
+    ? 'Oui ('+String(ensTodayCumul).padStart(2,'0')+'/'+String(ensGoalFinal).padStart(2,'0')+')'
+    : 'Non (00/'+String(ensGoalFinal).padStart(2,'0')+')';
   lines.push('8. Écoute Enseignement : '+ens8);
   lines.push('');
   const evang9 = entry.evang_count>0
@@ -2677,7 +2696,7 @@ function buildMonthlyReport(year, month) {
   const vals=entries.map(([,v])=>v); const n=entries.length;
   const sum=(fn)=>vals.reduce((a,v)=>a+(fn(v)||0),0); const cnt=(fn)=>vals.filter(fn).length;
   const totalDon=sum(v=>v.don_amount||0); const donGoal=goals.monthly.don_amount||0;
-  const psGoal=goals.monthly.ps_min||0; const ensGoal=goals.daily.enseignement_count||5;
+  const psGoal=goals.monthly.ps_min||0; const ensGoal=goals.monthly.enseignement_count||goals.daily.enseignement_count||5;
   const vmGoal=goals.daily.vm_count||0; const rdqdGoal=goals.daily.rdqd_count||1;
   const lbGoal=goals.monthly.lb_count||0;
   const vmCount=cnt(v=>v.vm===true);
