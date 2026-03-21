@@ -129,6 +129,13 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 .nc-asp-btn{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--tdim);font-family:'Jost',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.05em}
 .nc-asp-btn:hover{border-color:var(--goldd);color:var(--gold)}
 .nc-asp-btn.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--goldl)}
+.rdqd-sessions{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.rdqd-session{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.rdqd-session-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rdqd-session-num{font-size:11px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.rdqd-session-del{background:none;border:none;color:var(--tdim);cursor:pointer;font-size:13px;padding:0 2px}
+.rdqd-session-del:hover{color:var(--redl)}
+.rdqd-session-verse{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--tmuted);margin-top:2px}
 /* IMPORTUNITES */
 .imp-list{display:flex;flex-direction:column;gap:12px}
 .imp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
@@ -502,8 +509,20 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="card">
           <div class="card-hd"><div class="badge">1</div><div><div class="card-title">RDQD</div><div class="card-sub">Rencontres Dynamiques & Quotidiennes avec Dieu</div></div></div>
           <div class="card-bd">
-            <div class="frow"><label>Rencontres</label><div class="cg"><button class="cb" onclick="adj('rdqd_count',-1)">−</button><input type="number" id="rdqd_count" class="ci" value="0" min="0"><button class="cb" onclick="adj('rdqd_count',1)">+</button></div></div>
-            <div class="frow"><label>Temps méditation</label><div class="tg"><input type="number" id="rdqd_h" class="ti" placeholder="h" min="0" max="23"><span>h</span><input type="number" id="rdqd_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_rdqd" onclick="toggleNC('rdqd')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
+            <div class="frow">
+              <label>Rencontres</label>
+              <div class="cg">
+                <button class="cb" onclick="rdqdRemove()">−</button>
+                <span id="rdqd_count_display" style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--goldl);font-weight:600;min-width:28px;text-align:center">0</span>
+                <button class="cb" onclick="rdqdAdd()">+</button>
+              </div>
+            </div>
+            <div id="rdqd_sessions_list" class="rdqd-sessions"></div>
+            <div class="frow" style="margin-top:6px">
+              <label style="font-size:11px;color:var(--tdim)">Total méditation</label>
+              <span id="rdqd_total_display" style="font-size:13px;color:var(--gold);font-weight:500">--</span>
+              <button class="nc-btn" id="nc_rdqd" onclick="toggleNC('rdqd')" title="NC — compte pour 0">NC</button>
+            </div>
           </div>
         </div>
 
@@ -548,7 +567,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
           <div class="card-hd"><div class="badge">5</div><div><div class="card-title">Littérature Chrétienne (LCC)</div></div></div>
           <div class="card-bd">
             <div class="frow"><label>Pages lues</label><div class="cg"><button class="cb" onclick="adj('lcc_pages',-1)">−</button><input type="number" id="lcc_pages" class="ci" value="0" min="0"><button class="cb" onclick="adj('lcc_pages',1)">+</button></div></div>
-            <div class="frow-col"><label>Livre en cours</label><div class="bsr"><select id="lcc_book_select" class="sel" onchange="selectBook()"><option value="">-- Sélectionner --</option></select><button class="small-btn" onclick="openAddBookModal()">+ Nouveau</button></div></div>
+            <div class="frow-col"><label>Livre en cours</label><div class="bsr"><select id="lcc_book_select" class="sel" onchange="selectBook()"><option value="">-- Sélectionner --</option></select><button class="small-btn" onclick="openAddBookModal()">+ Nouveau</button><button class="small-btn" id="lcc_remove_btn" onclick="removeLccBook()" style="display:none;border-color:var(--red);color:var(--redl)" title="Retirer ce livre de la journée">✕</button></div></div>
             <div id="lcc_book_progress" style="display:none" class="bprog"></div>
             <div id="lcc_month_books" class="lcc-month-books"></div>
           </div>
@@ -560,9 +579,10 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
           <div class="card-bd">
             <div class="tgl-grp"><button class="tgl-btn" id="paa_oui" onclick="setToggle('paa',true)">Oui</button><button class="tgl-btn tgl-no" id="paa_non" onclick="setToggle('paa',false)">Non</button></div>
             <div id="paa_details" style="display:none;margin-top:12px">
+              <div class="frow-col" style="margin-bottom:8px"><label>Titre / contexte (affiché dans le CR)</label><input type="text" id="paa_title" class="inp" placeholder="ex: Prière du vendredi soir, Réunion..."></div>
               <div class="frow"><label>Durée</label><div class="tg"><input type="number" id="paa_h" class="ti" placeholder="h" min="0"><span>h</span><input type="number" id="paa_m" class="ti" placeholder="min" min="0" max="59"><span>min</span><button class="nc-btn" id="nc_paa" onclick="toggleNC('paa')" title="Non crédité — compte pour 0 dans les rapports">NC</button></div></div>
               <div style="margin-top:10px">
-                <div class="asp-label">Personnes avec qui j'ai prié :</div>
+                <div class="asp-label">Personnes avec qui j'ai prié (privé — hors CR) :</div>
                 <div id="paa_partners_list" class="aspects-today-list"></div>
                 <div style="display:flex;gap:8px;margin-top:6px">
                   <input type="text" id="paa_partner_input" class="inp" placeholder="Nom de la personne..." style="flex:1" onkeydown="if(event.key==='Enter') addPaaPartner()">
@@ -688,11 +708,16 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
     <!-- ===== STATISTIQUES ===== -->
     <div class="view" id="view-stats">
       <div class="view-header"><h1 class="view-title">Statistiques</h1></div>
-      <div class="period-row">
+      <div class="period-row" style="align-items:center;flex-wrap:wrap;gap:8px">
         <button class="period-btn active" onclick="loadStats('month',event)">Ce mois</button>
         <button class="period-btn" onclick="loadStats('year',event)">Cette année</button>
         <button class="period-btn" onclick="loadStats('all',event)">Tout</button>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+          <label style="font-size:11px;color:var(--tdim)">Mois passé :</label>
+          <input type="month" id="stats_month_picker" class="month-inp" style="font-size:12px;padding:5px 8px" onchange="loadStats('custom',{target:{classList:{add:function(){},remove:function(){}},closest:function(){return null;}}})">
+        </div>
       </div>
+      <div id="stats_vs_goals" style="display:none;margin-bottom:16px"></div>
       <div id="stats-grid" class="stats-grid"></div>
       <div class="chart-section"><h2 class="sec-title">Évolution (30 derniers jours)</h2><div class="chart-wrap"><canvas id="mainChart"></canvas></div></div>
     </div>
@@ -1572,8 +1597,7 @@ function deselectAllChapters() {
 
 // ========== FORM RENDER ==========
 function renderTodayFields() {
-  setVal('rdqd_count', todayData.rdqd_count||0);
-  const rt=fromMinutes(todayData.rdqd_min||0); setVal('rdqd_h',rt.h||''); setVal('rdqd_m',rt.m||'');
+  renderRdqdSessions();
   // PS total is derived from aspects — restore aspects then recalc total
   renderTodayAspects();
   recalcPsTotal();
@@ -1581,9 +1605,17 @@ function renderTodayFields() {
   setToggleDisplay('vm',todayData.vm);
   updateLbSummary();
   setVal('lcc_pages',todayData.lcc_pages||0);
-  loadBooksDropdown(); if(todayData.lcc_book_id){setVal('lcc_book_select',todayData.lcc_book_id);showBookProgress(todayData.lcc_book_id);}
+  loadBooksDropdown();
+  if(todayData.lcc_book_id){
+    setVal('lcc_book_select',todayData.lcc_book_id);
+    showBookProgress(todayData.lcc_book_id);
+    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='inline-flex';
+  } else {
+    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='none';
+  }
   setToggleDisplay('paa',todayData.paa);
   document.getElementById('paa_details').style.display=todayData.paa?'block':'none';
+  setVal('paa_title',todayData.paa_title||'');
   const pat=fromMinutes(todayData.paa_min||0); setVal('paa_h',pat.h||''); setVal('paa_m',pat.m||'');
   renderPaaPartners();
   setToggleDisplay('confession',todayData.confession);
@@ -1894,6 +1926,112 @@ function editAspectTime(id) {
   setTimeout(()=>document.getElementById('atime_h').focus(),100);
 }
 
+// ========== RDQD SESSIONS ==========
+function rdqdAdd() {
+  if (!todayData.rdqd_sessions) todayData.rdqd_sessions = [];
+  todayData.rdqd_sessions.push({id:'rd_'+Date.now(), mins:0, verse:'', verseRef:''});
+  renderRdqdSessions();
+}
+function rdqdRemove() {
+  if (!todayData.rdqd_sessions || todayData.rdqd_sessions.length === 0) return;
+  todayData.rdqd_sessions.pop();
+  renderRdqdSessions();
+}
+function rdqdSetTime(id, h, m) {
+  const s = (todayData.rdqd_sessions||[]).find(x=>x.id===id);
+  if (s) { s.mins = toMinutes(h, m); updateRdqdTotal(); }
+}
+function rdqdSetVerse(id, field, val) {
+  const s = (todayData.rdqd_sessions||[]).find(x=>x.id===id);
+  if (s) s[field] = val;
+}
+function updateRdqdTotal() {
+  const total = (todayData.rdqd_sessions||[]).reduce((a,s)=>a+(s.mins||0),0);
+  todayData.rdqd_min = total;
+  const el = document.getElementById('rdqd_total_display');
+  if (el) el.textContent = total>0 ? formatMinutes(total) : '--';
+}
+function renderRdqdSessions() {
+  const sessions = todayData.rdqd_sessions || [];
+  const countEl = document.getElementById('rdqd_count_display');
+  if (countEl) countEl.textContent = sessions.length;
+  const c = document.getElementById('rdqd_sessions_list'); if (!c) return;
+  if (sessions.length === 0) { c.innerHTML = ''; updateRdqdTotal(); return; }
+  c.innerHTML = sessions.map(function(s, i) {
+    const t = fromMinutes(s.mins||0);
+    const sid = s.id;
+    const div = document.createElement('div');
+    div.className = 'rdqd-session';
+    div.innerHTML = '<div class="rdqd-session-header">'
+      +'<span class="rdqd-session-num">Rencontre '+(i+1)+'</span>'
+      +'<button class="rdqd-session-del" title="Supprimer">✕</button>'
+      +'</div>'
+      +'<div class="tg" style="flex-wrap:nowrap">'
+        +'<input type="number" class="ti" placeholder="h" min="0" value="'+(t.h||'')+'">'
+        +'<span>h</span>'
+        +'<input type="number" class="ti" placeholder="min" min="0" max="59" value="'+(t.m||'')+'">'
+        +'<span>min</span>'
+      +'</div>'
+      +'<input type="text" class="inp rdqd-verse-inp" style="margin-top:5px;font-style:italic;font-size:12px" placeholder="Passage médité (ex: Jean 3:16)" value="'+(s.verse||'')+'">';
+    // Attach events via JS (avoids inline quote issues)
+    div.querySelector('.rdqd-session-del').onclick = function(){ rdqdDeleteSession(sid); };
+    const inputs = div.querySelectorAll('.ti');
+    inputs[0].oninput = function(){ rdqdSetTimeById(sid, this.value, null); };
+    inputs[1].oninput = function(){ rdqdSetTimeById(sid, null, this.value); };
+    div.querySelector('.rdqd-verse-inp').oninput = function(){ rdqdSetVerse(sid,'verse',this.value); };
+    return div;
+  });
+  c.innerHTML = '';
+  sessions_els = c;
+  sessions.forEach(function(s,i){
+    const t = fromMinutes(s.mins||0);
+    const sid = s.id;
+    const div = document.createElement('div');
+    div.className = 'rdqd-session';
+    const hdr = document.createElement('div'); hdr.className='rdqd-session-header';
+    const num = document.createElement('span'); num.className='rdqd-session-num'; num.textContent='Rencontre '+(i+1);
+    const del = document.createElement('button'); del.className='rdqd-session-del'; del.title='Supprimer'; del.textContent='✕';
+    del.onclick = function(){ rdqdDeleteSession(sid); };
+    hdr.appendChild(num); hdr.appendChild(del); div.appendChild(hdr);
+    const timeRow = document.createElement('div'); timeRow.className='tg'; timeRow.style.flexWrap='nowrap';
+    const hInp = document.createElement('input'); hInp.type='number'; hInp.className='ti'; hInp.placeholder='h'; hInp.min='0'; hInp.value=t.h||'';
+    hInp.oninput=function(){ rdqdSetTimeById(sid,this.value,null); };
+    const hSpan=document.createElement('span'); hSpan.textContent='h';
+    const mInp=document.createElement('input'); mInp.type='number'; mInp.className='ti'; mInp.placeholder='min'; mInp.min='0'; mInp.max='59'; mInp.value=t.m||'';
+    mInp.oninput=function(){ rdqdSetTimeById(sid,null,this.value); };
+    const mSpan=document.createElement('span'); mSpan.textContent='min';
+    timeRow.appendChild(hInp); timeRow.appendChild(hSpan); timeRow.appendChild(mInp); timeRow.appendChild(mSpan);
+    div.appendChild(timeRow);
+    const verseInp=document.createElement('input'); verseInp.type='text'; verseInp.className='inp'; verseInp.style.cssText='margin-top:5px;font-style:italic;font-size:12px'; verseInp.placeholder='Passage médité (ex: Jean 3:16)'; verseInp.value=s.verse||'';
+    verseInp.oninput=function(){ rdqdSetVerse(sid,'verse',this.value); };
+    div.appendChild(verseInp);
+    c.appendChild(div);
+  });
+  updateRdqdTotal();
+}
+// Separate h and m inputs per session — need to read current sibling value
+function rdqdSetTimeById(id, hVal, mVal) {
+  const s = (todayData.rdqd_sessions||[]).find(x=>x.id===id); if (!s) return;
+  const t = fromMinutes(s.mins||0);
+  const h = hVal !== null ? (parseInt(hVal)||0) : t.h;
+  const m = mVal !== null ? (parseInt(mVal)||0) : t.m;
+  s.mins = h*60 + m;
+  updateRdqdTotal();
+}
+function rdqdDeleteSession(id) {
+  todayData.rdqd_sessions = (todayData.rdqd_sessions||[]).filter(s=>s.id!==id);
+  renderRdqdSessions();
+}
+
+// ========== LCC REMOVE BOOK ==========
+function removeLccBook() {
+  todayData.lcc_book_id = '';
+  setVal('lcc_book_select', '');
+  document.getElementById('lcc_book_progress').style.display='none';
+  const btn = document.getElementById('lcc_remove_btn');
+  if (btn) btn.style.display='none';
+}
+
 // ========== SAVED VERSES ==========
 function openAddVerseModal() { setVal('new_verse_text',''); setVal('new_verse_ref',''); document.getElementById('modal-verse').style.display='flex'; setTimeout(()=>document.getElementById('new_verse_text').focus(),100); }
 function addVerse() {
@@ -1922,7 +2060,12 @@ function loadBooksDropdown() {
   books.filter(b=>!b.completed).forEach(b=>{const opt=document.createElement('option');opt.value=b.id;opt.textContent=`${b.title}${b.author?' — '+b.author:''}`;sel.appendChild(opt);});
   if(cur) sel.value=cur;
 }
-function selectBook() { const id=document.getElementById('lcc_book_select').value; todayData.lcc_book_id=id; showBookProgress(id); }
+function selectBook() {
+  const id=document.getElementById('lcc_book_select').value;
+  todayData.lcc_book_id=id; showBookProgress(id);
+  const btn=document.getElementById('lcc_remove_btn');
+  if(btn) btn.style.display=id?'inline-flex':'none';
+}
 function showBookProgress(id) {
   const el=document.getElementById('lcc_book_progress'); const b=books.find(x=>x.id===id);
   if(!b){el.style.display='none';return;}
@@ -2208,8 +2351,10 @@ function renderImportunites() {
 // ========== COLLECT & SAVE ==========
 function gv(id){const e=document.getElementById(id);return e?e.value:'';}
 function collectCurrentFormData() {
-  todayData.rdqd_count=parseInt(gv('rdqd_count'))||0;
-  todayData.rdqd_min=toMinutes(gv('rdqd_h'),gv('rdqd_m'));
+  // RDQD: count and total min derived from sessions array
+  const rdqdSess = todayData.rdqd_sessions||[];
+  todayData.rdqd_count = rdqdSess.length;
+  todayData.rdqd_min = rdqdSess.reduce(function(a,s){return a+(s.mins||0);},0);
   todayData.nc_rdqd=!!todayData.nc_rdqd;
   // PS total is calculated from aspects — not from a manual field
   if (!todayData.ps_aspects || todayData.ps_aspects.length === 0) {
@@ -2226,6 +2371,7 @@ function collectCurrentFormData() {
   todayData.lcc_book_id=gv('lcc_book_select');
   if(todayData.lcc_book_id){const book=books.find(b=>b.id===todayData.lcc_book_id);if(book){if(prevBook===todayData.lcc_book_id) book.pagesRead=book.pagesRead-prevPages+todayData.lcc_pages; else book.pagesRead+=todayData.lcc_pages; book.pagesRead=Math.max(0,Math.min(book.pagesRead,book.totalPages)); if(!book.completed&&book.pagesRead>=book.totalPages){book.completed=true;book.completedDate=getDateKey(currentDate);book.readCount=(book.readCount||0)+1;}}}
   todayData.paa_min=toMinutes(gv('paa_h'),gv('paa_m'));
+  todayData.paa_title=gv('paa_title').trim();
   todayData.nc_paa=!!todayData.nc_paa;
   todayData.enseignement_count=parseInt(gv('enseignement_count'))||0;
   todayData.evang_count=parseInt(gv('evang_count'))||0;
@@ -2315,12 +2461,17 @@ function gotoDate(key) {
 function loadStats(period,e) {
   statsPeriod=period;
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
-  if(e&&e.target) e.target.classList.add('active');
-  else { const btns=document.querySelectorAll('.period-btn'); if(period==='month')btns[0]?.classList.add('active'); else if(period==='year')btns[1]?.classList.add('active'); else btns[2]?.classList.add('active'); }
-  const now=new Date(); let entries;
-  if(period==='month'){const mk=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;entries=Object.entries(allEntries).filter(([k])=>k.startsWith(mk));}
+  if(e&&e.target&&e.target.classList) e.target.classList.add('active');
+  else { const btns=document.querySelectorAll('.period-btn'); if(period==='month')btns[0]?.classList.add('active'); else if(period==='year')btns[1]?.classList.add('active'); else if(period==='all')btns[2]?.classList.add('active'); }
+  const now=new Date(); let entries; let customMk='';
+  if(period==='custom'){
+    customMk=document.getElementById('stats_month_picker')?.value||'';
+    if(!customMk){period='month';}
+    else{entries=Object.entries(allEntries).filter(([k])=>k.startsWith(customMk));}
+  }
+  if(period==='month'){const mk=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');entries=Object.entries(allEntries).filter(([k])=>k.startsWith(mk));}
   else if(period==='year') entries=Object.entries(allEntries).filter(([k])=>k.startsWith(String(now.getFullYear())));
-  else entries=Object.entries(allEntries);
+  else if(period==='all') entries=Object.entries(allEntries);
   const vals=entries.map(([,v])=>v); const n=vals.length||1;
   const sum=(fn)=>vals.reduce((a,v)=>a+(fn(v)||0),0); const cnt=(fn)=>vals.filter(fn).length;
   const td=entries.length;
@@ -2338,6 +2489,46 @@ function loadStats(period,e) {
     {value:`$${sum(v=>v.don_amount||0).toFixed(2)}`,label:'Dons à Dieu'},
   ].map(s=>`<div class="stat-card"><div class="sv">${s.value}</div><div class="sl">${s.label}</div>${s.sub?`<div class="ssub">${s.sub}</div>`:''}</div>`).join('');
   renderChart(entries);
+  // Show goals comparison panel
+  renderStatsVsGoals(entries, period, customMk);
+}
+function renderStatsVsGoals(entries, period, mk) {
+  const panel = document.getElementById('stats_vs_goals'); if(!panel) return;
+  if(period!=='month'&&period!=='custom'){panel.style.display='none';return;}
+  const vals=entries.map(([,v])=>v); const n=vals.length||1;
+  const sum=(fn)=>vals.reduce((a,v)=>a+(fn(v)||0),0);
+  const cnt=(fn)=>vals.filter(fn).length;
+  const mg=goals.monthly;
+  const comparisons=[
+    {label:'Chapitres Bible',    actual:sum(v=>v.lb_count),          goal:mg.lb_count,         unit:'ch.'},
+    {label:'Livres LCC',         actual:cnt(v=>v.lcc_book_id&&v.lcc_pages>0), goal:mg.lcc_books, unit:'livres'},
+    {label:'Pages LCC',          actual:sum(v=>v.lcc_pages),         goal:mg.lcc_pages,        unit:'p.'},
+    {label:'Prière seule',       actual:sum(v=>v.ps_min),            goal:mg.ps_min,           unit:'min', fmt:true},
+    {label:'PAA',                actual:sum(v=>v.paa_min),           goal:mg.paa_min,          unit:'min', fmt:true},
+    {label:'VM',                 actual:cnt(v=>v.vm===true),         goal:mg.vm_count,         unit:''},
+    {label:'Retraites',          actual:(retreats||[]).filter(r=>r.date&&r.date.startsWith(mk||'')).length, goal:mg.retreat_count, unit:''},
+    {label:'Jeûnes',             actual:cnt(v=>v.fast&&v.fast!=='aucun'), goal:mg.fast_count,  unit:'j.'},
+    {label:'Évangélisation',     actual:sum(v=>v.evang_count),       goal:mg.evang_count,      unit:''},
+    {label:'Dons à Dieu',        actual:sum(v=>v.don_amount||0),     goal:mg.don_amount,       unit:'$'},
+  ].filter(c=>c.goal>0);
+  if(comparisons.length===0){panel.style.display='none';return;}
+  panel.style.display='block';
+  panel.innerHTML='<div style="font-size:12px;color:var(--tmuted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Progression vs Objectifs mensuels</div>'
+    +comparisons.map(function(c){
+      const pct=Math.min(100,Math.round(c.actual/c.goal*100));
+      const disp=c.fmt?formatMinutes(c.actual):(c.unit==='$'?'$'+c.actual.toFixed(2):c.actual+(c.unit?' '+c.unit:''));
+      const goalDisp=c.fmt?formatMinutes(c.goal):(c.unit==='$'?'$'+c.goal.toFixed(2):c.goal+(c.unit?' '+c.unit:''));
+      const color=pct>=100?'var(--greenl)':pct>=75?'var(--gold)':'var(--redl)';
+      return '<div style="margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+          +'<span style="color:var(--text)">'+c.label+'</span>'
+          +'<span style="color:'+color+'">'+disp+' / '+goalDisp+' ('+pct+'%)</span>'
+        +'</div>'
+        +'<div style="width:100%;height:5px;background:var(--bg4);border-radius:99px;overflow:hidden">'
+          +'<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:99px;transition:width .4s"></div>'
+        +'</div>'
+      +'</div>';
+    }).join('');
 }
 let chartInst=null;
 function renderChart(entries) {
@@ -2422,7 +2613,14 @@ function buildDailyReport(dateKey, entry) {
   const[y,m,d]=dateKey.split('-').map(Number); const date=new Date(y,m-1,d);
   const dg=goals.daily; const ensGoal=dg.enseignement_count||5; const rdqdGoal=dg.rdqd_count||1; const lbGoal=dg.lb_count||0; const psGoal=dg.ps_min||0;
   const lines=[]; lines.push(formatDateFR(date)); lines.push('');
-  lines.push(`1. RDQD : ${String(entry.rdqd_count||0).padStart(2,'0')}/${String(rdqdGoal).padStart(2,'0')}${(entry.rdqd_min>0||entry.nc_rdqd)?' ('+formatMinutes(entry.rdqd_min, entry.nc_rdqd)+')':''}`);
+  const rdqdMin = entry.nc_rdqd ? 0 : (entry.rdqd_min||0);
+  const rdqdTimeStr = (entry.rdqd_min>0||entry.nc_rdqd)?' ('+formatMinutes(entry.rdqd_min, entry.nc_rdqd)+')':'';
+  lines.push('1. RDQD : '+String(entry.rdqd_count||0).padStart(2,'0')+'/'+String(rdqdGoal).padStart(2,'0')+rdqdTimeStr);
+  // Show individual sessions with their verses
+  (entry.rdqd_sessions||[]).forEach(function(s,i){
+    const sessTime = s.mins>0 ? ' ('+formatMinutes(s.mins)+')' : '';
+    lines.push('   - Rencontre '+(i+1)+sessTime+(s.verse?' — '+s.verse:''));
+  });
   lines.push('');
   lines.push(`2. PS : ${(entry.ps_min>0||entry.nc_ps)?formatMinutes(entry.ps_min, entry.nc_ps):'00'}${psGoal>0?'/'+formatMinutes(psGoal):''}`);
   (entry.ps_aspects||[]).forEach(a=>lines.push(`   * ${a.name} : ${a.nc?'NC':(a.mins>0?formatMinutes(a.mins):'--')}`));
@@ -2451,7 +2649,9 @@ function buildDailyReport(dateKey, entry) {
       +' ('+bk.pagesRead+'/'+bk.totalPages+')');
   }
   lines.push('');
-  lines.push(`6. PAA : ${entry.paa===true?'Oui'+((entry.paa_min>0||entry.nc_paa)?' -- '+formatMinutes(entry.paa_min, entry.nc_paa):''):entry.paa===false?'Non':'00'}`);
+  const paaTitleStr = entry.paa_title ? ' — '+entry.paa_title : '';
+  const paaDurStr = (entry.paa_min>0||entry.nc_paa) ? ' ('+formatMinutes(entry.paa_min, entry.nc_paa)+')' : '';
+  lines.push('6. PAA : '+(entry.paa===true?'Oui'+paaTitleStr+paaDurStr:entry.paa===false?'Non':'00'));
   lines.push('');
   lines.push(`7. Confession des péchés : ${entry.confession===true?'Oui':entry.confession===false?'Non':'00'}`);
   lines.push('');
@@ -2579,12 +2779,19 @@ function generateReport(type) {
   c.style.display='block'; c._reportText=text; c.scrollIntoView({behavior:'smooth'});
 }
 function showDailyPreview() {
-  try {
-    collectCurrentFormData();
-  } catch(e) {
-    console.warn('collectCurrentFormData error (non-fatal):', e);
+  // Collect form data first, then build report from current todayData
+  try { collectCurrentFormData(); } catch(e) { console.warn('preview collect:', e); }
+  // Make sure verse fields are captured (they may not be visible when on a different view)
+  if (gv('verse_text')) todayData.verse_text = gv('verse_text').trim();
+  if (gv('verse_ref'))  todayData.verse_ref  = gv('verse_ref').trim();
+  const entry = JSON.parse(JSON.stringify(todayData));
+  // If the form verse is empty but the saved entry has a verse, use the saved one
+  const saved = allEntries[getDateKey(currentDate)];
+  if (!entry.verse_text && saved && saved.verse_text) {
+    entry.verse_text = saved.verse_text;
+    entry.verse_ref  = saved.verse_ref || '';
   }
-  const text = buildDailyReport(getDateKey(currentDate), JSON.parse(JSON.stringify(todayData)));
+  const text = buildDailyReport(getDateKey(currentDate), entry);
   const el = document.getElementById('preview-content');
   if (el) el.textContent = text;
   const modal = document.getElementById('modal-preview');
