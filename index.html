@@ -2638,7 +2638,7 @@ function buildDailyReport(dateKey, entry) {
   lines.push(`3. VM : ${entry.vm===true?'Oui':entry.vm===false?'Non':'00'}`);
   lines.push('');
   const bibleText=entry.bible_selection?bibleSelectionToText(entry.bible_selection):'';
-  lines.push(`4. LB : ${entry.lb_count||0}${lbGoal>0?'/'+lbGoal:''} chapitres lus${bibleText?' ('+bibleText+')':''}`);
+  lines.push('4. LB : '+String(entry.lb_count||0).padStart(2,'0')+(lbGoal>0?'/'+String(lbGoal).padStart(2,'0'):'')+' chapitres lus'+(bibleText?' ('+bibleText+')':''));
   lines.push('');
   const pagesLus = entry.lcc_pages||0;
   lines.push('5. LCC : '+pagesLus+' page'+(pagesLus!==1?'s':'')+' lues');
@@ -2674,13 +2674,15 @@ function buildDailyReport(dateKey, entry) {
   const ensAlreadySaved = allEntries[ensTodayKey] && allEntries[ensTodayKey].enseignement_count!==undefined;
   const ensTodayCumul = ensAlreadySaved ? ensCumul : (ensCumul + (entry.enseignement_count||0));
   const ensGoalFinal = goals.monthly.enseignement_count || ensGoal;
-  const ens8 = ensTodayCumul>0
+  const ensToday = entry.enseignement_count || 0;
+  // Oui/Non basé sur le jour, cumul mensuel entre parenthèses
+  const ens8 = ensToday > 0
     ? 'Oui ('+String(ensTodayCumul).padStart(2,'0')+'/'+String(ensGoalFinal).padStart(2,'0')+')'
-    : 'Non (00/'+String(ensGoalFinal).padStart(2,'0')+')';
+    : 'Non ('+String(ensTodayCumul).padStart(2,'0')+'/'+String(ensGoalFinal).padStart(2,'0')+')';
   lines.push('8. Écoute Enseignement : '+ens8);
   lines.push('');
   const evang9 = entry.evang_count>0
-    ? 'Oui — '+entry.evang_count+' personne'+(entry.evang_count>1?'s':'')
+    ? 'Oui — '+String(entry.evang_count).padStart(2,'0')+' personne'+(entry.evang_count>1?'s':'')
     : 'Non';
   lines.push('9. Évangélisation : '+evang9);
   lines.push('');
