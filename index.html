@@ -2039,29 +2039,33 @@ function renderMonthBooks() {
   const c=document.getElementById('lcc_month_books'); if(!c) return;
   const mk=currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
   const bks = getActiveBooksForDate(mk+'-01');
-  if(bks.length===0){c.innerHTML='';return;}
-  const label='<p style="font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Livres actifs ce mois :</p>';
-  c.innerHTML=label+bks.map(function(b){
+  c.innerHTML='';
+  if(bks.length===0) return;
+  const label=document.createElement('p');
+  label.style.cssText='font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px';
+  label.textContent='Livres actifs ce mois :';
+  c.appendChild(label);
+  bks.forEach(function(b){
     const done = b.completedDate && b.completedDate.startsWith(mk);
     const row = document.createElement('div');
-    row.className = 'mb-book';
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.justifyContent = 'space-between';
-    row.style.gap = '6px';
+    row.className='mb-book';
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:6px';
     const info = document.createElement('span');
-    info.style.flex = '1';
-    info.innerHTML = (done?'<span style="color:var(--greenl)">✓ </span>':'')+b.title+(b.author?' — '+b.author:'')+' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>';
+    info.style.flex='1';
+    info.innerHTML=(done?'<span style="color:var(--greenl)">✓ </span>':'')+b.title+(b.author?' — '+b.author:'')+' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>';
     const del = document.createElement('button');
-    del.textContent = '✕';
-    del.title = 'Retirer ce livre du mois';
-    del.style.cssText = 'background:none;border:none;color:var(--tdim);cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0';
-    del.onmouseenter = function(){this.style.color='var(--redl)';};
-    del.onmouseleave = function(){this.style.color='var(--tdim)';};
-    del.onclick = function(){ if(confirm('Retirer "'+b.title+'" du mois ? Cela effacera les entrées de pages pour ce mois.')) removeBookFromMonth(b.id); };
-    row.appendChild(info); row.appendChild(del);
-    return row.outerHTML;
-  }).join('');
+    del.textContent='✕';
+    del.title='Retirer ce livre du mois';
+    del.style.cssText='background:none;border:none;color:var(--tdim);cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0;transition:color .15s';
+    del.onmouseenter=function(){this.style.color='var(--redl)';};
+    del.onmouseleave=function(){this.style.color='var(--tdim)';};
+    del.onclick=(function(bid, btitle){ return function(){
+      if(confirm('Retirer "'+btitle+'" du mois ?')) removeBookFromMonth(bid);
+    }; })(b.id, b.title);
+    row.appendChild(info);
+    row.appendChild(del);
+    c.appendChild(row);
+  });
 }
 // Returns the list of "active" books for a given date's month:
 // - Books touched (any page read) during this month, whether finished or not
