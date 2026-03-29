@@ -136,28 +136,6 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 .rdqd-session-del{background:none;border:none;color:var(--tdim);cursor:pointer;font-size:13px;padding:0 2px}
 .rdqd-session-del:hover{color:var(--redl)}
 .rdqd-session-verse{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--tmuted);margin-top:2px}
-/* IMPORTUNITES */
-.imp-list{display:flex;flex-direction:column;gap:12px}
-.imp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.imp-card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.imp-subject{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--goldl)}
-.imp-goal-txt{font-size:11px;color:var(--tmuted);margin-top:2px}
-.imp-body{padding:12px 16px}
-.imp-pb-outer{width:100%;height:8px;background:var(--bg4);border-radius:99px;margin:8px 0;overflow:hidden}
-.imp-pb-inner{height:100%;background:linear-gradient(90deg,var(--goldd),var(--gold));border-radius:99px;transition:width .4s}
-.imp-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--tmuted);margin-bottom:10px;flex-wrap:wrap;gap:4px}
-.imp-stats strong{color:var(--goldl)}
-.imp-log{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;margin-bottom:10px}
-.imp-log-item{display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:var(--rs);padding:5px 10px;font-size:12px;gap:8px}
-.imp-log-date{color:var(--tmuted);flex:1}
-.imp-log-time{color:var(--gold);font-weight:500;white-space:nowrap}
-.imp-log-del{background:none;border:none;color:var(--tdim);cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0}
-.imp-log-del:hover{color:var(--redl)}
-.imp-add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.imp-complete{border-color:var(--green)!important}
-.imp-complete .imp-subject{color:var(--greenl)}
-.imp-badge{font-size:10px;color:var(--greenl);background:rgba(90,138,90,.2);border:1px solid var(--green);border-radius:99px;padding:2px 8px;white-space:nowrap}
-
 /* INPUTS */
 .inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'Jost',sans-serif;font-size:13px;padding:7px 10px;outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--goldd)}
@@ -482,7 +460,6 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
       <li><button class="nav-item" data-view="authors"><span class="ni">🎙</span><span>Auteurs</span></button></li>
       <li><button class="nav-item" data-view="evangelised"><span class="ni">🌱</span><span>Personnes évangélisées</span></button></li>
       <li><button class="nav-item" data-view="retreats"><span class="ni">⛺</span><span>Retraites</span></button></li>
-      <li><button class="nav-item" data-view="importunites"><span class="ni">🔥</span><span>Importunités</span></button></li>
       <li class="nav-sep">OUTILS</li>
       <li><button class="nav-item" data-view="search"><span class="ni">🔍</span><span>Recherche</span></button></li>
       <li><button class="nav-item" data-view="reports"><span class="ni">📄</span><span>Rapports</span></button></li>
@@ -772,16 +749,6 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
       <div id="retreats-list" class="retreats-list"></div>
     </div>
 
-    <!-- ===== IMPORTUNITES ===== -->
-    <div class="view" id="view-importunites">
-      <div class="view-header">
-        <h1 class="view-title">Importunités</h1>
-        <button class="save-btn small" onclick="openAddImpModal()">+ Ajouter un sujet</button>
-      </div>
-      <p class="vdesc">Sujets de prière persistants avec objectif de temps. Privé — n'apparaît dans aucun rapport généré.</p>
-      <div id="imp-list" class="imp-list"></div>
-    </div>
-
     <!-- ===== RECHERCHE ===== -->
     <div class="view" id="view-search">
       <div class="view-header"><h1 class="view-title">Recherche</h1></div>
@@ -996,29 +963,6 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
   </div>
 </div>
 
-<!-- Add importunité subject -->
-<div class="modal-overlay" id="modal-imp-add" style="display:none" onclick="closeModal('modal-imp-add')">
-  <div class="modal" onclick="event.stopPropagation()">
-    <h3 class="modal-title">Nouveau sujet d'importunité</h3>
-    <div class="frow-col"><label>Sujet de prière *</label><input type="text" id="imp_subject" class="inp" placeholder="ex: Seigneur bénis-moi avec un stage"></div>
-    <div class="frow-col" style="margin-top:8px"><label>Objectif total (nombre)</label><input type="number" id="imp_goal_count" class="inp" placeholder="ex: 1000" min="1"></div>
-    <div class="frow-col" style="margin-top:8px"><label>Note / contexte (optionnel)</label><textarea id="imp_note" class="inp" style="height:60px;resize:vertical" placeholder="Contexte, versets d'appui..."></textarea></div>
-    <div class="modal-actions"><button class="modal-btn cancel" onclick="closeModal('modal-imp-add')">Annuler</button><button class="modal-btn confirm" onclick="saveImpSubject()">Créer</button></div>
-  </div>
-</div>
-
-<!-- Log importunité time -->
-<div class="modal-overlay" id="modal-imp-log" style="display:none" onclick="closeModal('modal-imp-log')">
-  <div class="modal" onclick="event.stopPropagation()">
-    <h3 class="modal-title">Ajouter — <span id="imp-log-subject-name" style="color:var(--goldl)"></span></h3>
-    <input type="hidden" id="imp_log_id">
-    <div class="frow-col"><label>Date</label><input type="date" id="imp_log_date" class="inp"></div>
-    <div class="frow-col" style="margin-top:8px"><label>Nombre ajouté aujourd'hui</label><input type="number" id="imp_log_count" class="inp" placeholder="ex: 50" min="1"></div>
-    <div class="frow-col" style="margin-top:8px"><label>Note (optionnel)</label><input type="text" id="imp_log_note" class="inp" placeholder="ex: prière du matin..."></div>
-    <div class="modal-actions"><button class="modal-btn cancel" onclick="closeModal('modal-imp-log')">Annuler</button><button class="modal-btn confirm" onclick="saveImpLog()">Ajouter</button></div>
-  </div>
-</div>
-
 <!-- Add retreat -->
 <div class="modal-overlay" id="modal-retreat" style="display:none" onclick="closeModal('modal-retreat')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -1212,7 +1156,7 @@ function startListening(uid) {
     doc => {
       if (doc.exists) {
         const data = doc.data();
-        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats","sj_imp"];
+        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats"];
         let changed = false;
         KEYS.forEach(k => {
           if (data[k] !== undefined) {
@@ -1234,8 +1178,7 @@ function startListening(uid) {
           renderAuthorsView();
           renderEvangelisedView();
           renderRetreatsView();
-          renderImportunites();
-        }
+                }
         showSyncStatus("Synchronise -- " + new Date().toLocaleTimeString('fr-FR'), "ok");
       } else {
         syncToFirebase(); // premiere utilisation
@@ -1261,7 +1204,6 @@ function syncToFirebase() {
       sj_authors:  JSON.parse(localStorage.getItem("sj_authors")  || "[]"),
       sj_evang:    JSON.parse(localStorage.getItem("sj_evang")    || "[]"),
       sj_retreats: JSON.parse(localStorage.getItem("sj_retreats") || "[]"),
-      sj_imp:      JSON.parse(localStorage.getItem("sj_imp")       || "[]"),
       lastUpdated: new Date().toISOString()
     };
     showSyncStatus("Synchronisation...", "pending");
@@ -1284,7 +1226,7 @@ function showSyncStatus(msg, type) {
 // ========== STATE ==========
 let currentDate = new Date(); currentDate.setHours(0,0,0,0);
 let todayData = {}, allEntries = {}, books = [], goals = {daily:{},monthly:{}};
-let masterAspects = [], savedVerses = [], authors = [], evangelised = [], retreats = [], importunites = [];
+let masterAspects = [], savedVerses = [], authors = [], evangelised = [], retreats = [];
 let statsPeriod = 'month', pendingAspectId = null;
 let bibleSelection = {}; // {bookName: [1,2,3,...chapters]}
 let bibleTab = 'AT';
@@ -1326,7 +1268,6 @@ function init() {
       if (view==='authors') renderAuthorsView();
       if (view==='evangelised') renderEvangelisedView();
       if (view==='retreats') renderRetreatsView();
-      if (view==='importunites') renderImportunites();
     });
   });
   document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
@@ -1351,7 +1292,6 @@ function startApp() {
   renderAuthorsView();
   renderEvangelisedView();
   renderRetreatsView();
-  renderImportunites();
   loadVerseDropdown();
   loadAuthorsDropdown();
   const now = new Date();
@@ -1451,7 +1391,6 @@ function loadFromStorage() {
   authors      = JSON.parse(localStorage.getItem('sj_authors')   || '[]');
   evangelised  = JSON.parse(localStorage.getItem('sj_evang')     || '[]');
   retreats     = JSON.parse(localStorage.getItem('sj_retreats')  || '[]');
-  importunites = JSON.parse(localStorage.getItem('sj_imp')       || '[]');
   loadEntry(currentDate);
 }
 function saveToStorage() {
@@ -1463,7 +1402,6 @@ function saveToStorage() {
   localStorage.setItem("sj_authors",   JSON.stringify(authors));
   localStorage.setItem("sj_evang",     JSON.stringify(evangelised));
   localStorage.setItem("sj_retreats",  JSON.stringify(retreats));
-  localStorage.setItem("sj_imp",       JSON.stringify(importunites));
   syncToFirebase();
 }
 function loadEntry(date) {
@@ -2073,6 +2011,30 @@ function showBookProgress(id) {
   el.style.display='block';
   el.innerHTML=`<div style="display:flex;justify-content:space-between"><span>${b.title}</span><span style="color:var(--gold)">${b.pagesRead}/${b.totalPages} p. (${pct}%)</span></div><div class="pb-outer"><div class="pb-inner" style="width:${pct}%"></div></div>`;
 }
+function removeBookFromMonth(bookId) {
+  // Remove all entries of this book for the current month
+  const mk = currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
+  Object.keys(allEntries).filter(k=>k.startsWith(mk)).forEach(function(k){
+    if(allEntries[k].lcc_book_id === bookId) {
+      allEntries[k].lcc_book_id = '';
+      allEntries[k].lcc_pages = 0;
+    }
+  });
+  // Also reset book's pagesRead if it was only read this month
+  const b = books.find(x=>x.id===bookId);
+  if(b && (!b.completedDate || !b.completedDate.startsWith(mk))) {
+    b.pagesRead = 0; b.completed = false; b.completedDate = null;
+  }
+  // Reset today's form if needed
+  if(todayData.lcc_book_id === bookId) {
+    todayData.lcc_book_id = ''; todayData.lcc_pages = 0;
+    setVal('lcc_book_select',''); setVal('lcc_pages','0');
+    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='none';
+    document.getElementById('lcc_book_progress').style.display='none';
+  }
+  saveToStorage();
+  renderMonthBooks();
+}
 function renderMonthBooks() {
   const c=document.getElementById('lcc_month_books'); if(!c) return;
   const mk=currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
@@ -2081,11 +2043,24 @@ function renderMonthBooks() {
   const label='<p style="font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Livres actifs ce mois :</p>';
   c.innerHTML=label+bks.map(function(b){
     const done = b.completedDate && b.completedDate.startsWith(mk);
-    return '<div class="mb-book">'
-      +(done?'<span style="color:var(--greenl)">✓ </span>':'')
-      +b.title+(b.author?' — '+b.author:'')
-      +' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>'
-      +'</div>';
+    const row = document.createElement('div');
+    row.className = 'mb-book';
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.gap = '6px';
+    const info = document.createElement('span');
+    info.style.flex = '1';
+    info.innerHTML = (done?'<span style="color:var(--greenl)">✓ </span>':'')+b.title+(b.author?' — '+b.author:'')+' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>';
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.title = 'Retirer ce livre du mois';
+    del.style.cssText = 'background:none;border:none;color:var(--tdim);cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0';
+    del.onmouseenter = function(){this.style.color='var(--redl)';};
+    del.onmouseleave = function(){this.style.color='var(--tdim)';};
+    del.onclick = function(){ if(confirm('Retirer "'+b.title+'" du mois ? Cela effacera les entrées de pages pour ce mois.')) removeBookFromMonth(b.id); };
+    row.appendChild(info); row.appendChild(del);
+    return row.outerHTML;
   }).join('');
 }
 // Returns the list of "active" books for a given date's month:
@@ -2265,88 +2240,6 @@ function renderRetreatsView() {
   c.innerHTML=sorted.map(r=>`<div class="retreat-card"><div class="retreat-name">${r.name||'Retraite'}</div><div class="retreat-meta">${r.date||''} ${r.duration>0?'— '+formatMinutes(r.duration):''} ${r.location?'— 📍 '+r.location:''}</div>${r.but?`<div style="font-size:12px;color:var(--goldl);margin-top:4px">🎯 But : ${r.but}</div>`:''} ${r.notes?`<div style="font-size:12px;color:var(--tdim);margin-top:4px;font-style:italic">${r.notes}</div>`:''}<div class="retreat-acts"><button class="bact-btn" onclick="openEditRetreatModal('${r.id}')">Modifier</button><button class="bact-btn del" onclick="deleteRetreat('${r.id}')">Supprimer</button></div></div>`).join('');
 }
 
-// ========== IMPORTUNITES ==========
-function openAddImpModal() {
-  ['imp_subject','imp_note'].forEach(id=>setVal(id,''));
-  setVal('imp_goal_count','');
-  document.getElementById('modal-imp-add').style.display='flex';
-  setTimeout(()=>document.getElementById('imp_subject').focus(),100);
-}
-function saveImpSubject() {
-  const subject=document.getElementById('imp_subject').value.trim(); if(!subject) return;
-  const goalCount=parseInt(document.getElementById('imp_goal_count').value)||0;
-  const note=document.getElementById('imp_note').value.trim();
-  importunites.push({id:'imp_'+Date.now(),subject,goalCount,note,logs:[],createdDate:getDateKey(new Date())});
-  saveToStorage(); renderImportunites(); closeModal('modal-imp-add');
-}
-function deleteImpSubject(id) {
-  if(!confirm('Supprimer ce sujet d\'importunité et tout son historique ?')) return;
-  importunites=importunites.filter(x=>x.id!==id);
-  saveToStorage(); renderImportunites();
-}
-function openImpLogModal(id) {
-  const imp=importunites.find(x=>x.id===id); if(!imp) return;
-  setVal('imp_log_id',id);
-  document.getElementById('imp-log-subject-name').textContent=imp.subject;
-  setVal('imp_log_date',getDateKey(new Date()));
-  setVal('imp_log_count',''); setVal('imp_log_note','');
-  document.getElementById('modal-imp-log').style.display='flex';
-  setTimeout(()=>document.getElementById('imp_log_count').focus(),100);
-}
-function saveImpLog() {
-  const id=document.getElementById('imp_log_id').value;
-  const imp=importunites.find(x=>x.id===id); if(!imp) return;
-  const count=parseInt(document.getElementById('imp_log_count').value)||0;
-  if(count<=0) return;
-  const date=document.getElementById('imp_log_date').value||getDateKey(new Date());
-  const note=document.getElementById('imp_log_note').value.trim();
-  if(!imp.logs) imp.logs=[];
-  imp.logs.push({id:'log_'+Date.now(),date,count,note});
-  saveToStorage(); renderImportunites(); closeModal('modal-imp-log');
-}
-function deleteImpLog(impId,logId) {
-  const imp=importunites.find(x=>x.id===impId); if(!imp) return;
-  imp.logs=(imp.logs||[]).filter(l=>l.id!==logId);
-  saveToStorage(); renderImportunites();
-}
-function renderImportunites() {
-  const c=document.getElementById('imp-list'); if(!c) return;
-  if(importunites.length===0){c.innerHTML='<p style="color:var(--tmuted);font-style:italic">Aucun sujet. Cliquez "+ Ajouter un sujet".</p>';return;}
-  c.innerHTML=importunites.map(function(imp){
-    const total=(imp.logs||[]).reduce(function(a,l){return a+(l.count||(l.mins||0));},0);
-    const pct=imp.goalCount>0?Math.min(100,Math.round(total/imp.goalCount*100)):0;
-    const done=imp.goalCount>0&&total>=imp.goalCount;
-    const goalTxt=imp.goalCount>0?'Objectif : '+imp.goalCount:"Pas d'objectif fixé";
-    let logsHtml='';
-    (imp.logs||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(l){
-      const cnt=l.count||(l.mins||0);
-      logsHtml+='<div class="imp-log-item">'
-        +'<span class="imp-log-date">'+l.date+'</span>'
-        +'<span class="imp-log-time">+'+cnt+(l.note?' — '+l.note:'')+'</span>'
-        +'<button class="imp-log-del" data-iid="'+imp.id+'" data-lid="'+l.id+'" onclick="deleteImpLog(this.dataset.iid,this.dataset.lid)">✕</button>'
-        +'</div>';
-    });
-    const pbHtml=imp.goalCount>0?'<div class="imp-pb-outer"><div class="imp-pb-inner" style="width:'+pct+'%"></div></div>':'';
-    const doneBadge=done?'<span class="imp-badge">✓ Objectif atteint</span>':'';
-    return '<div class="imp-card'+(done?' imp-complete':'')+'">'
-      +'<div class="imp-card-header">'
-        +'<div><div class="imp-subject">'+imp.subject+'</div>'
-        +'<div class="imp-goal-txt">'+goalTxt+(imp.note?' — '+imp.note:'')+'</div></div>'
-        +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">'+doneBadge
-        +'<button class="bact-btn del" data-id="'+imp.id+'" onclick="deleteImpSubject(this.dataset.id)">✕</button></div>'
-      +'</div>'
-      +'<div class="imp-body">'
-        +'<div class="imp-stats">'
-          +'<span>Total : <strong>'+total+'</strong></span>'
-          +(imp.goalCount>0?'<span>Progression : <strong>'+pct+'%</strong></span>':'')
-          +'<span>'+(imp.logs||[]).length+' session'+((imp.logs||[]).length!==1?'s':'')+'</span>'
-        +'</div>'
-        +pbHtml
-        +(logsHtml?'<div class="imp-log">'+logsHtml+'</div>':'')
-        +'<div class="imp-add-row"><button class="save-btn small" data-id="'+imp.id+'" onclick="openImpLogModal(this.dataset.id)">+ Ajouter</button></div>'
-      +'</div></div>';
-  }).join('');
-}
 
 // ========== COLLECT & SAVE ==========
 function gv(id){const e=document.getElementById(id);return e?e.value:'';}
