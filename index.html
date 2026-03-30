@@ -2056,19 +2056,42 @@ function renderMonthBooks() {
     const done = b.completedDate && b.completedDate.startsWith(mk);
     const row = document.createElement('div');
     row.className='mb-book';
-    row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:6px';
+    row.setAttribute('data-book-id', b.id);
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap';
+    // Main info line
     const info = document.createElement('span');
     info.style.flex='1';
     info.innerHTML=(done?'<span style="color:var(--greenl)">✓ </span>':'')+b.title+(b.author?' — '+b.author:'')+' <span style="color:var(--gold);font-size:10px">('+b.pagesRead+'/'+b.totalPages+')</span>';
+    // Delete button — direct, no confirm()
     const del = document.createElement('button');
     del.textContent='✕';
     del.title='Retirer ce livre du mois';
-    del.style.cssText='background:none;border:none;color:var(--tdim);cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0;transition:color .15s';
-    del.onmouseenter=function(){this.style.color='var(--redl)';};
-    del.onmouseleave=function(){this.style.color='var(--tdim)';};
-    del.onclick=(function(bid, btitle){ return function(){
-      if(confirm('Retirer "'+btitle+'" du mois ?')) removeBookFromMonth(bid);
-    }; })(b.id, b.title);
+    del.style.cssText='background:none;border:1px solid transparent;color:var(--tdim);cursor:pointer;font-size:13px;font-weight:bold;padding:2px 6px;flex-shrink:0;border-radius:4px;transition:all .15s';
+    del.onmouseenter=function(){this.style.color='var(--redl)';this.style.borderColor='var(--redl)';};
+    del.onmouseleave=function(){this.style.color='var(--tdim)';this.style.borderColor='transparent';};
+    del.onclick=function(e){
+      e.stopPropagation();
+      // Show inline confirmation in the row
+      const confirmRow = document.createElement('div');
+      confirmRow.style.cssText='width:100%;display:flex;align-items:center;gap:8px;margin-top:4px;padding:4px 6px;background:rgba(200,50,50,0.12);border-radius:4px;font-size:11px;color:var(--redl)';
+      confirmRow.innerHTML='Retirer ce livre du mois ?';
+      const btnOui = document.createElement('button');
+      btnOui.textContent='Oui, retirer';
+      btnOui.style.cssText='background:var(--redl);color:#fff;border:none;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:6px';
+      const btnNon = document.createElement('button');
+      btnNon.textContent='Annuler';
+      btnNon.style.cssText='background:var(--bg3);color:var(--text);border:none;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px';
+      const bid = b.id;
+      btnOui.onclick=function(){ removeBookFromMonth(bid); };
+      btnNon.onclick=function(){ confirmRow.remove(); };
+      confirmRow.appendChild(btnOui);
+      confirmRow.appendChild(btnNon);
+      // Remove any existing confirm rows
+      const existing = row.querySelector('.book-confirm-row');
+      if(existing) { existing.remove(); return; }
+      confirmRow.className='book-confirm-row';
+      row.appendChild(confirmRow);
+    };
     row.appendChild(info);
     row.appendChild(del);
     c.appendChild(row);
