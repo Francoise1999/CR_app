@@ -1156,7 +1156,7 @@ function startListening(uid) {
     doc => {
       if (doc.exists) {
         const data = doc.data();
-        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats"];
+        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats","sj_rm_books"];
         let changed = false;
         KEYS.forEach(k => {
           if (data[k] !== undefined) {
@@ -1204,6 +1204,7 @@ function syncToFirebase() {
       sj_authors:  JSON.parse(localStorage.getItem("sj_authors")  || "[]"),
       sj_evang:    JSON.parse(localStorage.getItem("sj_evang")    || "[]"),
       sj_retreats: JSON.parse(localStorage.getItem("sj_retreats") || "[]"),
+      sj_rm_books: JSON.parse(localStorage.getItem("sj_rm_books") || "{}"),
       lastUpdated: new Date().toISOString()
     };
     showSyncStatus("Synchronisation...", "pending");
@@ -1227,6 +1228,7 @@ function showSyncStatus(msg, type) {
 let currentDate = new Date(); currentDate.setHours(0,0,0,0);
 let todayData = {}, allEntries = {}, books = [], goals = {daily:{},monthly:{}};
 let masterAspects = [], savedVerses = [], authors = [], evangelised = [], retreats = [];
+let removedBooksPerMonth = {}; // {"2026-03": ["book_123", ...], ...}
 let statsPeriod = 'month', pendingAspectId = null;
 let bibleSelection = {}; // {bookName: [1,2,3,...chapters]}
 let bibleTab = 'AT';
@@ -1391,6 +1393,7 @@ function loadFromStorage() {
   authors      = JSON.parse(localStorage.getItem('sj_authors')   || '[]');
   evangelised  = JSON.parse(localStorage.getItem('sj_evang')     || '[]');
   retreats     = JSON.parse(localStorage.getItem('sj_retreats')  || '[]');
+  removedBooksPerMonth = JSON.parse(localStorage.getItem('sj_rm_books') || '{}');
   loadEntry(currentDate);
 }
 function saveToStorage() {
@@ -1402,6 +1405,7 @@ function saveToStorage() {
   localStorage.setItem("sj_authors",   JSON.stringify(authors));
   localStorage.setItem("sj_evang",     JSON.stringify(evangelised));
   localStorage.setItem("sj_retreats",  JSON.stringify(retreats));
+  localStorage.setItem("sj_rm_books", JSON.stringify(removedBooksPerMonth));
   syncToFirebase();
 }
 function loadEntry(date) {
@@ -2012,20 +2016,23 @@ function showBookProgress(id) {
   el.innerHTML=`<div style="display:flex;justify-content:space-between"><span>${b.title}</span><span style="color:var(--gold)">${b.pagesRead}/${b.totalPages} p. (${pct}%)</span></div><div class="pb-outer"><div class="pb-inner" style="width:${pct}%"></div></div>`;
 }
 function removeBookFromMonth(bookId) {
-  // Remove all entries of this book for the current month
   const mk = currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
+  // 1. Effacer les entrées du mois pour ce livre
   Object.keys(allEntries).filter(k=>k.startsWith(mk)).forEach(function(k){
     if(allEntries[k].lcc_book_id === bookId) {
       allEntries[k].lcc_book_id = '';
       allEntries[k].lcc_pages = 0;
     }
   });
-  // Also reset book's pagesRead if it was only read this month
+  // 2. Ajouter à la liste noire du mois pour empêcher le carry-over de le réafficher
+  if(!removedBooksPerMonth[mk]) removedBooksPerMonth[mk] = [];
+  if(!removedBooksPerMonth[mk].includes(bookId)) removedBooksPerMonth[mk].push(bookId);
+  // 3. Reset la progression du livre
   const b = books.find(x=>x.id===bookId);
   if(b && (!b.completedDate || !b.completedDate.startsWith(mk))) {
     b.pagesRead = 0; b.completed = false; b.completedDate = null;
   }
-  // Reset today's form if needed
+  // 4. Reset le formulaire du jour si besoin
   if(todayData.lcc_book_id === bookId) {
     todayData.lcc_book_id = ''; todayData.lcc_pages = 0;
     setVal('lcc_book_select',''); setVal('lcc_pages','0');
@@ -2090,25 +2097,32 @@ function getActiveBooksForDate(dateKey) {
 
   const result = [];
 
-  // Books touched this month — always include
+  // Books touched this month — include unless explicitly removed
+  const removedThisMonthEarly = (removedBooksPerMonth && removedBooksPerMonth[mk]) || [];
   bookTouchedInMonth.forEach(id => {
+    if (removedThisMonthEarly.includes(id)) return; // user removed it
     const b = books.find(x => x.id === id);
     if (b) result.push(b);
   });
 
   // Books touched before this month — include only if NOT completed before this month starts
+  // AND not explicitly removed by the user for this month
+  const removedThisMo = (removedBooksPerMonth && removedBooksPerMonth[mk]) || [];
   bookTouchedBefore.forEach(id => {
     if (bookTouchedInMonth.has(id)) return; // already in list
+    if (removedThisMo.includes(id)) return; // user removed it for this month
     const b = books.find(x => x.id === id);
     if (!b) return;
-    // If completed, check if completedDate is within this month or later
     if (b.completed && b.completedDate) {
       const compMk = b.completedDate.substring(0,7);
-      if (compMk < mk) return; // completed before this month — don't carry over
+      if (compMk < mk) return;
     }
-    // Not yet completed as of this month → carry over
     result.push(b);
   });
+  // Also filter books touched this month against the blacklist
+  for(let i=result.length-1;i>=0;i--){
+    if(removedThisMo.includes(result[i].id) && !bookTouchedInMonth.has(result[i].id)) result.splice(i,1);
+  }
 
   // Deduplicate and sort: completed this month first, then in-progress
   const seen = new Set();
