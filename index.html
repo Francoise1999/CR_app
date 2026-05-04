@@ -1076,7 +1076,7 @@ const NT_TOTAL = BIBLE_BOOKS.filter(b=>b.testament==='NT').reduce((a,b)=>a+b.cha
 // ÉTAPE 5 : Colle tes valeurs ci-dessous
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBK8c6Hvs6JQ034mOI7jhO5Ibe4Z1YvITM",
-  authDomain: "journal-spirituel-78d25.firebaseapp.com",
+  authDomain: "francoise1999.github.io",
   projectId: "journal-spirituel-78d25",
   storageBucket: "journal-spirituel-78d25.firebasestorage.app",
   messagingSenderId: "410157748198",
@@ -1111,9 +1111,10 @@ function initFirebase() {
         // L'auth state change va se déclencher automatiquement — rien à faire ici
       }
     }).catch(function(err) {
-      if (err.code !== 'auth/no-auth-event') {
+      console.error('Redirect result error:', err);
+      if (err.code && err.code !== 'auth/no-auth-event') {
         const el = document.getElementById('auth-err');
-        if (el) el.textContent = 'Erreur connexion : ' + err.message;
+        if (el) el.textContent = 'Erreur retour Google (' + err.code + ') : ' + err.message;
       }
     });
 
@@ -1145,7 +1146,8 @@ function signInWithGoogle() {
   provider.addScope('profile');
   // Redirect est plus fiable que Popup sur GitHub Pages / mobile
   auth.signInWithRedirect(provider).catch(function(err) {
-    document.getElementById('auth-err').textContent = 'Erreur : ' + err.message;
+    console.error('Auth error:', err);
+    document.getElementById('auth-err').textContent = 'Erreur (' + err.code + ') : ' + err.message;
   });
 }
 
