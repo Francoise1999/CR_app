@@ -1076,7 +1076,7 @@ const NT_TOTAL = BIBLE_BOOKS.filter(b=>b.testament==='NT').reduce((a,b)=>a+b.cha
 // ÉTAPE 5 : Colle tes valeurs ci-dessous
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBK8c6Hvs6JQ034mOI7jhO5Ibe4Z1YvITM",
-  authDomain: "francoise1999.github.io",
+  authDomain: "journal-spirituel-78d25.firebaseapp.com",
   projectId: "journal-spirituel-78d25",
   storageBucket: "journal-spirituel-78d25.firebasestorage.app",
   messagingSenderId: "410157748198",
@@ -1111,10 +1111,9 @@ function initFirebase() {
         // L'auth state change va se déclencher automatiquement — rien à faire ici
       }
     }).catch(function(err) {
-      console.error('Redirect result error:', err);
-      if (err.code && err.code !== 'auth/no-auth-event') {
+      if (err.code !== 'auth/no-auth-event') {
         const el = document.getElementById('auth-err');
-        if (el) el.textContent = 'Erreur retour Google (' + err.code + ') : ' + err.message;
+        if (el) el.textContent = 'Erreur connexion : ' + err.message;
       }
     });
 
@@ -1146,8 +1145,7 @@ function signInWithGoogle() {
   provider.addScope('profile');
   // Redirect est plus fiable que Popup sur GitHub Pages / mobile
   auth.signInWithRedirect(provider).catch(function(err) {
-    console.error('Auth error:', err);
-    document.getElementById('auth-err').textContent = 'Erreur (' + err.code + ') : ' + err.message;
+    document.getElementById('auth-err').textContent = 'Erreur : ' + err.message;
   });
 }
 
@@ -1304,6 +1302,9 @@ function startApp() {
   renderTodayFields();
   loadBooksDropdown();
   renderMonthBooks();
+  if (!goals) goals = {daily:{}, monthly:{}};
+  if (!goals.daily) goals.daily = {};
+  if (!goals.monthly) goals.monthly = {};
   loadGoalsForm();
   renderBooksView();
   renderMasterAspects();
@@ -2363,9 +2364,16 @@ const GOALS_MONTHLY=[
   {id:'fast_count',     label:'Jours de jeûne ce mois (nombre)'},
 ];
 function loadGoalsForm() {
+  if (!goals) goals = {daily:{}, monthly:{}};
+  if (!goals.daily) goals.daily = {};
+  if (!goals.monthly) goals.monthly = {};
   const dg=document.getElementById('daily-goals-grid'); const mg=document.getElementById('monthly-goals-grid');
-  if(dg) dg.innerHTML=GOALS_DAILY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_d_${f.id}" value="${goals.daily[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
-  if(mg) mg.innerHTML=GOALS_MONTHLY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_m_${f.id}" value="${goals.monthly[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
+  if(dg) dg.innerHTML=GOALS_DAILY.map(function(f){
+    return '<div class="goal-item"><label>'+f.label+'</label><input type="number" id="goal_d_'+f.id+'" value="'+(goals.daily[f.id]||'')+'" placeholder="Objectif" min="0"></div>';
+  }).join('');
+  if(mg) mg.innerHTML=GOALS_MONTHLY.map(function(f){
+    return '<div class="goal-item"><label>'+f.label+'</label><input type="number" id="goal_m_'+f.id+'" value="'+(goals.monthly[f.id]||'')+'" placeholder="Objectif" min="0"></div>';
+  }).join('');
 }
 function switchGoalTab(tab,e) {
   document.querySelectorAll('.gtab').forEach(t=>t.classList.remove('active')); if(e) e.target.classList.add('active');
