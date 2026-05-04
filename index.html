@@ -1087,46 +1087,46 @@ let db = null, auth = null, currentUser = null;
 let firebaseReady = false, syncTimeout = null, firestoreUnsubscribe = null;
 
 function initFirebase() {
-  // Attendre que les scripts Firebase soient chargés
-  if (typeof firebase === 'undefined') {
-    setTimeout(initFirebase, 100);
-    return;
-  }
+  if (typeof firebase === 'undefined') { setTimeout(initFirebase, 100); return; }
   if (FIREBASE_CONFIG.apiKey === "COLLE_TON_API_KEY_ICI") {
     document.getElementById('auth-screen').style.display = 'none';
-    showSyncStatus("Mode local -- configurez Firebase pour la sync", "warn");
-    startApp();
-    return;
+    showSyncStatus("Mode local", "warn"); startApp(); return;
   }
   try {
-    // Éviter double initialisation
-    if (!firebase.apps.length) {
-      firebase.initializeApp(FIREBASE_CONFIG);
-    }
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db   = firebase.firestore();
     auth = firebase.auth();
-    // Capturer le résultat du redirect Google si on revient d'une auth
+
+    // Traiter le résultat d'un redirect en cours EN PREMIER
+    // avant d'écouter onAuthStateChanged
     auth.getRedirectResult().then(function(result) {
+      // result.user sera non-null si on revient d'un redirect Google réussi
+      // onAuthStateChanged va se déclencher automatiquement ensuite
       if (result && result.user) {
-        // L'auth state change va se déclencher automatiquement — rien à faire ici
+        console.log('Redirect auth success:', result.user.email);
       }
     }).catch(function(err) {
-      if (err.code !== 'auth/no-auth-event') {
-        const el = document.getElementById('auth-err');
-        if (el) el.textContent = 'Erreur connexion : ' + err.message;
+      console.warn('getRedirectResult error:', err.code, err.message);
+      const el = document.getElementById('auth-err');
+      if (el && err.code && err.code !== 'auth/no-auth-event' && err.code !== 'auth/null-user') {
+        el.textContent = 'Erreur Google : ' + err.message;
       }
     });
 
+    // Écouter les changements d'état d'auth
     auth.onAuthStateChanged(function(user) {
       if (user) {
         currentUser = user;
         showUserBar(user);
         document.getElementById('auth-screen').style.display = 'none';
-        startListening(user.uid);
+        // Éviter de relancer startListening si déjà actif
+        if (!firestoreUnsubscribe) startListening(user.uid);
+        else startApp(); // données déjà chargées
       } else {
         currentUser = null;
         document.getElementById('auth-screen').style.display = 'flex';
-        document.getElementById('user-bar').style.display = 'none';
+        const ub = document.getElementById('user-bar');
+        if (ub) ub.style.display = 'none';
         if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
       }
     });
@@ -1139,18 +1139,39 @@ function initFirebase() {
 }
 
 function signInWithGoogle() {
-  document.getElementById('auth-err').textContent = 'Connexion en cours...';
+  const errEl = document.getElementById('auth-err');
+  const btn = document.getElementById('google-sign-btn');
+  if (errEl) errEl.textContent = '';
+  if (btn) btn.disabled = true;
+
   const provider = new firebase.auth.GoogleAuthProvider();
-  provider.addScope('email');
-  provider.addScope('profile');
-  // Redirect est plus fiable que Popup sur GitHub Pages / mobile
-  auth.signInWithRedirect(provider).catch(function(err) {
-    document.getElementById('auth-err').textContent = 'Erreur : ' + err.message;
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  // Essayer popup d'abord, fallback sur redirect si bloqué
+  auth.signInWithPopup(provider).then(function(result) {
+    // Succès popup — onAuthStateChanged va gérer la suite
+    if (btn) btn.disabled = false;
+  }).catch(function(err) {
+    console.warn('Popup failed, trying redirect:', err.code);
+    if (err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user' ||
+        err.code === 'auth/cancelled-popup-request' ||
+        err.code === 'auth/internal-error') {
+      // Fallback: redirect
+      if (errEl) errEl.textContent = 'Redirection vers Google...';
+      auth.signInWithRedirect(provider).catch(function(e2) {
+        if (errEl) errEl.textContent = 'Erreur : ' + e2.message;
+        if (btn) btn.disabled = false;
+      });
+    } else {
+      if (errEl) errEl.textContent = 'Erreur (' + err.code + ') : ' + err.message;
+      if (btn) btn.disabled = false;
+    }
   });
 }
 
 function signOut() {
-  if (confirm('Se déconnecter ?')) auth.signOut();
+  auth.signOut();
 }
 
 function showUserBar(user) {
@@ -1302,9 +1323,6 @@ function startApp() {
   renderTodayFields();
   loadBooksDropdown();
   renderMonthBooks();
-  if (!goals) goals = {daily:{}, monthly:{}};
-  if (!goals.daily) goals.daily = {};
-  if (!goals.monthly) goals.monthly = {};
   loadGoalsForm();
   renderBooksView();
   renderMasterAspects();
@@ -2364,16 +2382,9 @@ const GOALS_MONTHLY=[
   {id:'fast_count',     label:'Jours de jeûne ce mois (nombre)'},
 ];
 function loadGoalsForm() {
-  if (!goals) goals = {daily:{}, monthly:{}};
-  if (!goals.daily) goals.daily = {};
-  if (!goals.monthly) goals.monthly = {};
   const dg=document.getElementById('daily-goals-grid'); const mg=document.getElementById('monthly-goals-grid');
-  if(dg) dg.innerHTML=GOALS_DAILY.map(function(f){
-    return '<div class="goal-item"><label>'+f.label+'</label><input type="number" id="goal_d_'+f.id+'" value="'+(goals.daily[f.id]||'')+'" placeholder="Objectif" min="0"></div>';
-  }).join('');
-  if(mg) mg.innerHTML=GOALS_MONTHLY.map(function(f){
-    return '<div class="goal-item"><label>'+f.label+'</label><input type="number" id="goal_m_'+f.id+'" value="'+(goals.monthly[f.id]||'')+'" placeholder="Objectif" min="0"></div>';
-  }).join('');
+  if(dg) dg.innerHTML=GOALS_DAILY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_d_${f.id}" value="${goals.daily[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
+  if(mg) mg.innerHTML=GOALS_MONTHLY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_m_${f.id}" value="${goals.monthly[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
 }
 function switchGoalTab(tab,e) {
   document.querySelectorAll('.gtab').forEach(t=>t.classList.remove('active')); if(e) e.target.classList.add('active');
