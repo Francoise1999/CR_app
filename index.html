@@ -1187,6 +1187,7 @@ function startListening(uid) {
         });
         if (changed) {
           loadFromStorage();
+          if (!goals || !goals.daily) goals = {daily:{}, monthly:{}};
           renderTodayFields();
           renderMonthBooks();
           loadBooksDropdown();
@@ -1405,7 +1406,10 @@ function closeSidebarOnMobile() {
 function loadFromStorage() {
   allEntries   = JSON.parse(localStorage.getItem('sj_entries')   || '{}');
   books        = JSON.parse(localStorage.getItem('sj_books')     || '[]');
-  goals        = JSON.parse(localStorage.getItem('sj_goals')     || '{"daily":{},"monthly":{}}');
+  goals = JSON.parse(localStorage.getItem('sj_goals') || '{"daily":{},"monthly":{}}');
+  if (!goals || typeof goals !== 'object') goals = {daily:{}, monthly:{}};
+  if (!goals.daily)   goals.daily   = {};
+  if (!goals.monthly) goals.monthly = {};
   masterAspects= JSON.parse(localStorage.getItem('sj_aspects')   || '[]');
   savedVerses  = JSON.parse(localStorage.getItem('sj_verses')    || '[]');
   authors      = JSON.parse(localStorage.getItem('sj_authors')   || '[]');
@@ -2364,6 +2368,9 @@ const GOALS_MONTHLY=[
   {id:'fast_count',     label:'Jours de jeûne ce mois (nombre)'},
 ];
 function loadGoalsForm() {
+  if (!goals) goals = {daily:{}, monthly:{}};
+  if (!goals.daily) goals.daily = {};
+  if (!goals.monthly) goals.monthly = {};
   const dg=document.getElementById('daily-goals-grid'); const mg=document.getElementById('monthly-goals-grid');
   if(dg) dg.innerHTML=GOALS_DAILY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_d_${f.id}" value="${goals.daily[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
   if(mg) mg.innerHTML=GOALS_MONTHLY.map(f=>`<div class="goal-item"><label>${f.label}</label><input type="number" id="goal_m_${f.id}" value="${goals.monthly[f.id]||''}" placeholder="Objectif" min="0"></div>`).join('');
