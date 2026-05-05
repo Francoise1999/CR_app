@@ -21,9 +21,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#0e0c0a;--bg2:#16130f;--bg3:#1e1a14;--bg4:#26211a;
@@ -415,19 +412,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
 <body>
 
 <!-- AUTH SCREEN -->
-<div class="auth-screen" id="auth-screen">
-  <div class="auth-card">
-    <div class="auth-cross">✝</div>
-    <div class="auth-title">Journal Spirituel</div>
-    <div class="auth-sub">Connecte-toi pour accéder à tes données sur tous tes appareils.</div>
-    <button class="google-btn" id="google-sign-btn" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-      Continuer avec Google
-    </button>
-    <div class="auth-note">Tes données sont privées et liées à ton compte Google uniquement.</div>
-    <div class="auth-err" id="auth-err"></div>
-  </div>
-</div>
+<!-- auth-screen removed -->
 
 <header class="topbar">
   <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
@@ -440,9 +425,9 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
   <div id="sync-status" class="sync-status sync-ok" style="margin-left:auto"></div>
   <span class="topbar-date" id="topbarDate"></span>
   <div class="user-bar" id="user-bar" style="display:none">
-    <img class="user-avatar" id="user-avatar" src="" alt="">
-    <span class="user-name" id="user-name"></span>
-    <button class="signout-btn" onclick="signOut()">Déconnexion</button>
+    <span class="user-name" id="user-name">Mon Journal</span>
+    <button class="signout-btn" onclick="exportData()" title="Sauvegarder mes données en fichier JSON">⬇ Exporter</button>
+    <button class="signout-btn" onclick="importData()" title="Charger un fichier de sauvegarde">⬆ Importer</button>
   </div>
 </header>
 
@@ -1083,220 +1068,92 @@ const FIREBASE_CONFIG = {
   appId: "1:410157748198:web:bb4a2b386664ab99739027"
 };
 
-let db = null, auth = null, currentUser = null;
-let firebaseReady = false, syncTimeout = null, firestoreUnsubscribe = null;
+// ========== STOCKAGE LOCAL + EXPORT/IMPORT ==========
+let firebaseReady = false, syncTimeout = null;
 
 function initFirebase() {
-  // Attendre que les scripts Firebase soient chargés
-  if (typeof firebase === 'undefined') {
-    setTimeout(initFirebase, 100);
-    return;
-  }
-  if (FIREBASE_CONFIG.apiKey === "COLLE_TON_API_KEY_ICI") {
-    document.getElementById('auth-screen').style.display = 'none';
-    showSyncStatus("Mode local -- configurez Firebase pour la sync", "warn");
-    startApp();
-    return;
-  }
-  try {
-    // Éviter double initialisation
-    if (!firebase.apps.length) {
-      firebase.initializeApp(FIREBASE_CONFIG);
-    }
-    db   = firebase.firestore();
-    auth = firebase.auth();
-    auth.onAuthStateChanged(function(user) {
-      if (user) {
-        currentUser = user;
-        showUserBar(user);
-        document.getElementById('auth-screen').style.display = 'none';
-        if (!firestoreUnsubscribe) startListening(user.uid);
-      } else {
-        currentUser = null;
-        document.getElementById('auth-screen').style.display = 'flex';
-        document.getElementById('user-bar').style.display = 'none';
-        if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
-      }
-    });
-  } catch(e) {
-    console.error("Firebase init error:", e);
-    document.getElementById('auth-screen').style.display = 'none';
-    showSyncStatus("Erreur Firebase -- mode local", "error");
-    startApp();
-  }
-}
-
-function signInWithGoogle() {
-  const errEl = document.getElementById('auth-err');
-  const btn   = document.getElementById('google-sign-btn');
-  errEl.textContent = '';
-  if (btn) btn.disabled = true;
-
-  const provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-
-  // Persister la session localement pour ne pas redemander à chaque visite
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
-    return auth.signInWithPopup(provider);
-  }).then(function(result) {
-    // Succès — onAuthStateChanged prend le relais
-    if (btn) btn.disabled = false;
-  }).catch(function(err) {
-    if (btn) btn.disabled = false;
-    if (err.code === 'auth/popup-blocked' ||
-        err.code === 'auth/popup-closed-by-user' ||
-        err.code === 'auth/cancelled-popup-request') {
-      errEl.textContent = 'Popup bloquée — autorise les popups pour ce site dans ton navigateur, puis réessaie.';
-    } else {
-      errEl.textContent = 'Erreur (' + err.code + ') : ' + err.message;
-    }
-    console.error('Auth error:', err);
-  });
-}
-
-function signOut() { auth.signOut(); }
-
-function showUserBar(user) {
-  const bar = document.getElementById('user-bar');
-  const avatar = document.getElementById('user-avatar');
-  const name = document.getElementById('user-name');
-  if (user.photoURL) avatar.src = user.photoURL;
-  else avatar.style.display = 'none';
-  name.textContent = user.displayName || user.email || '';
-  bar.style.display = 'flex';
-}
-
-function startListening(uid) {
-  firebaseReady = true;
-  showSyncStatus("Connexion...", "pending");
+  // Plus de Firebase — démarrage direct
+  document.getElementById('user-bar').style.display = 'flex';
+  const nameEl = document.getElementById('user-name');
+  if (nameEl) nameEl.textContent = 'Mon Journal';
+  const avatarEl = document.getElementById('user-avatar');
+  if (avatarEl) avatarEl.style.display = 'none';
+  showSyncStatus('Données locales', 'ok');
   startApp();
-  firestoreUnsubscribe = db.collection("journals").doc(uid).onSnapshot(
-    doc => {
-      if (doc.exists) {
-        const data = doc.data();
-        const KEYS = ["sj_entries","sj_books","sj_goals","sj_aspects","sj_verses","sj_authors","sj_evang","sj_retreats","sj_rm_books"];
-        let changed = false;
-        KEYS.forEach(k => {
-          if (data[k] !== undefined) {
-            const remote = JSON.stringify(data[k]);
-            if (remote !== localStorage.getItem(k)) {
-              localStorage.setItem(k, JSON.stringify(data[k]));
-              changed = true;
-            }
-          }
-        });
-        if (changed) {
-          loadFromStorage();
-          if (!goals || !goals.daily) goals = {daily:{}, monthly:{}};
-          renderTodayFields();
-          renderMonthBooks();
-          loadBooksDropdown();
-          renderBooksView();
-          renderMasterAspects();
-          renderVersesView();
-          renderAuthorsView();
-          renderEvangelisedView();
-          renderRetreatsView();
-                }
-        showSyncStatus("Synchronise -- " + new Date().toLocaleTimeString('fr-FR'), "ok");
-      } else {
-        syncToFirebase(); // premiere utilisation
-      }
-    },
-    err => {
-      console.error("Firestore listen error:", err);
-      showSyncStatus("Hors ligne -- donnees locales", "warn");
-    }
-  );
 }
 
 function syncToFirebase() {
-  if (!firebaseReady || !db || !currentUser) return;
-  clearTimeout(syncTimeout);
-  syncTimeout = setTimeout(() => {
-    const data = {
-      sj_entries:  JSON.parse(localStorage.getItem("sj_entries")  || "{}"),
-      sj_books:    JSON.parse(localStorage.getItem("sj_books")    || "[]"),
-      sj_goals:    JSON.parse(localStorage.getItem("sj_goals")    || "{}"),
-      sj_aspects:  JSON.parse(localStorage.getItem("sj_aspects")  || "[]"),
-      sj_verses:   JSON.parse(localStorage.getItem("sj_verses")   || "[]"),
-      sj_authors:  JSON.parse(localStorage.getItem("sj_authors")  || "[]"),
-      sj_evang:    JSON.parse(localStorage.getItem("sj_evang")    || "[]"),
-      sj_retreats: JSON.parse(localStorage.getItem("sj_retreats") || "[]"),
-      sj_rm_books: JSON.parse(localStorage.getItem("sj_rm_books") || "{}"),
-      lastUpdated: new Date().toISOString()
-    };
-    showSyncStatus("Synchronisation...", "pending");
-    db.collection("journals").doc(currentUser.uid).set(data)
-      .then(() => showSyncStatus("Synchronise -- " + new Date().toLocaleTimeString('fr-FR'), "ok"))
-      .catch(err => {
-        console.error("Sync error:", err);
-        showSyncStatus("Erreur sync -- sauvegarde locale OK", "error");
-      });
-  }, 1500);
+  // Sauvegarde auto dans localStorage (déjà fait dans saveToStorage)
+  showSyncStatus('Sauvegardé — ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
 }
 
 function showSyncStatus(msg, type) {
-  const el = document.getElementById("sync-status");
+  const el = document.getElementById('sync-status');
   if (!el) return;
   el.textContent = msg;
-  el.className = "sync-status sync-" + (type || "ok");
+  el.className = 'sync-status sync-' + (type || 'ok');
 }
 
-// ========== STATE ==========
-let currentDate = new Date(); currentDate.setHours(0,0,0,0);
-let todayData = {}, allEntries = {}, books = [], goals = {daily:{},monthly:{}};
-let masterAspects = [], savedVerses = [], authors = [], evangelised = [], retreats = [];
-let removedBooksPerMonth = {}; // {"2026-03": ["book_123", ...], ...}
-let statsPeriod = 'month', pendingAspectId = null;
-let bibleSelection = {}; // {bookName: [1,2,3,...chapters]}
-let bibleTab = 'AT';
-let pendingBibleBook = null;
-let _authorReturnTo = null; // where to reload dropdown after author add
+function signOut() {
+  // Pas de déconnexion sans Firebase — proposer export
+  exportData();
+}
 
-const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-const MONTHS_FR_CAP = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
-// ========== INIT ==========
-function init() {
-  // Attach nav & global listeners immediately (UI is ready)
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const view = btn.dataset.view;
-      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.getElementById('view-' + view).classList.add('active');
-      closeSidebarOnMobile();
-      if (view==='today') {
-        // Always go back to real today when clicking Aujourd'hui
-        const realToday = new Date(); realToday.setHours(0,0,0,0);
-        if (getDateKey(currentDate) !== getDateKey(realToday)) {
-          try { collectCurrentFormData(); } catch(e) {}
-          saveCurrentEntry();
-          currentDate = realToday;
-          loadEntry(currentDate);
-          bibleSelection = todayData.bible_selection || {};
-          updateDateDisplay(); renderTodayFields(); renderMonthBooks();
-        }
-      }
-      if (view==='history') loadHistory();
-      if (view==='stats') loadStats(statsPeriod,null);
-      if (view==='books') renderBooksView();
-      if (view==='aspects') renderMasterAspects();
-      if (view==='verses') renderVersesView();
-      if (view==='authors') renderAuthorsView();
-      if (view==='evangelised') renderEvangelisedView();
-      if (view==='retreats') renderRetreatsView();
-    });
+// ── Export toutes les données en fichier JSON ──────────────────────────────
+function exportData() {
+  const KEYS = ['sj_entries','sj_books','sj_goals','sj_aspects','sj_verses',
+                'sj_authors','sj_evang','sj_retreats','sj_rm_books'];
+  const data = {};
+  KEYS.forEach(k => {
+    try { data[k] = JSON.parse(localStorage.getItem(k) || 'null'); } catch(e) {}
   });
-  document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
-  document.getElementById('nextDay').addEventListener('click', () => changeDate(1));
-  document.addEventListener('keydown', e => { if (e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.style.display='none'); });
-  setInterval(updateTopbarDate, 60000);
-  // Firebase handles the rest (shows auth screen or calls startApp)
-  initFirebase();
+  data._exportDate = new Date().toISOString();
+  data._version = '1.0';
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'journal-spirituel-' + new Date().toISOString().substring(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showSyncStatus('Export téléchargé ✓', 'ok');
+}
+
+// ── Import depuis un fichier JSON ─────────────────────────────────────────
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const KEYS = ['sj_entries','sj_books','sj_goals','sj_aspects','sj_verses',
+                      'sj_authors','sj_evang','sj_retreats','sj_rm_books'];
+        let count = 0;
+        KEYS.forEach(k => {
+          if (data[k] !== undefined && data[k] !== null) {
+            localStorage.setItem(k, JSON.stringify(data[k]));
+            count++;
+          }
+        });
+        loadFromStorage();
+        if (!goals || !goals.daily) goals = {daily:{}, monthly:{}};
+        renderTodayFields(); renderMonthBooks(); loadBooksDropdown();
+        renderBooksView(); renderMasterAspects(); renderVersesView();
+        renderAuthorsView(); renderEvangelisedView(); renderRetreatsView();
+        loadGoalsForm();
+        showSyncStatus('Import réussi — ' + count + ' sections chargées ✓', 'ok');
+        alert('Import réussi ! ' + Object.keys(data.sj_entries || {}).length + ' entrées chargées.');
+      } catch(err) {
+        alert('Erreur import : ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 function startApp() {
