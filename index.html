@@ -2693,7 +2693,12 @@ function buildDailyReport(dateKey, entry) {
   lines.push('9. Évangélisation : '+evang9);
   lines.push('');
   lines.push(`10. Traités distribués : ${entry.traites_count>0?entry.traites_count:0}`);
-  if(entry.verse_text){lines.push('');lines.push(`« ${entry.verse_text} »`);if(entry.verse_ref) lines.push(entry.verse_ref);}
+  if(entry.verse_text){
+    const cleanTxt=String(entry.verse_text).replace(/[\u271D\u271E\u271F\u2720\u2626]\uFE0F?/g,'').trim();
+    const cleanRef=String(entry.verse_ref||'').replace(/[\u271D\u271E\u271F\u2720\u2626]\uFE0F?/g,'').trim();
+    lines.push('');lines.push('« '+cleanTxt+' »');
+    if(cleanRef) lines.push(cleanRef);
+  }
   return lines.join('\n');
 }
 
