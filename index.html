@@ -2168,15 +2168,26 @@ function getActiveBooksForDate(dateKey) {
   // Collect all book IDs that had pages logged in ANY entry up to end of this month
   const bookTouchedInMonth = new Set();
   const bookTouchedBefore  = new Set();
+  const lastTouched = {}; // dernière date où le livre a été lu
 
   Object.entries(allEntries).forEach(([k, e]) => {
     if (!e.lcc_book_id) return;
+    if (!lastTouched[e.lcc_book_id] || k > lastTouched[e.lcc_book_id]) lastTouched[e.lcc_book_id] = k;
     if (k.startsWith(mk)) {
       bookTouchedInMonth.add(e.lcc_book_id);
     } else if (k < mk) {
       bookTouchedBefore.add(e.lcc_book_id);
     }
   });
+
+  // Mois de fin d'un livre ('' si pas encore fini)
+  function finishMonth(b) {
+    const isDone = b.completed || (b.totalPages > 0 && b.pagesRead >= b.totalPages);
+    if (!isDone) return '';
+    if (b.completedDate) return b.completedDate.substring(0,7);
+    if (lastTouched[b.id]) return lastTouched[b.id].substring(0,7);
+    return '';
+  }
 
   const result = [];
 
@@ -2196,10 +2207,8 @@ function getActiveBooksForDate(dateKey) {
     if (removedThisMo.includes(id)) return; // user removed it for this month
     const b = books.find(x => x.id === id);
     if (!b) return;
-    if (b.completed && b.completedDate) {
-      const compMk = b.completedDate.substring(0,7);
-      if (compMk < mk) return;
-    }
+    const fm = finishMonth(b);
+    if (fm && fm < mk) return; // fini un mois précédent : ne réapparaît plus
     result.push(b);
   });
   // Also filter books touched this month against the blacklist
@@ -2684,7 +2693,7 @@ function buildDailyReport(dateKey, entry) {
   lines.push('9. Évangélisation : '+evang9);
   lines.push('');
   lines.push(`10. Traités distribués : ${entry.traites_count>0?entry.traites_count:0}`);
-  if(entry.verse_text){lines.push('');lines.push(`« ${entry.verse_text} »`);if(entry.verse_ref) lines.push(entry.verse_ref+' ✝');}
+  if(entry.verse_text){lines.push('');lines.push(`« ${entry.verse_text} »`);if(entry.verse_ref) lines.push(entry.verse_ref);}
   return lines.join('\n');
 }
 
