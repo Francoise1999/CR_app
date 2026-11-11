@@ -545,7 +545,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="card">
           <div class="card-hd"><div class="badge">5</div><div><div class="card-title">Littérature Chrétienne (LCC)</div></div></div>
           <div class="card-bd">
-            <div class="frow"><label>Pages lues</label><div class="cg"><button class="cb" onclick="adj('lcc_pages',-1)">−</button><input type="number" id="lcc_pages" class="ci" value="0" min="0"><button class="cb" onclick="adj('lcc_pages',1)">+</button></div></div>
+            <div class="frow"><label>Page atteinte</label><div class="cg"><input type="number" id="lcc_reached" class="ci" value="" min="0" placeholder="n° de page" oninput="lccFromReached()"></div></div>
+            <div class="frow"><label>Pages lues (auto)</label><div class="cg"><input type="number" id="lcc_pages" class="ci" value="0" min="0" readonly></div></div>
             <div class="frow-col"><label>Livre en cours</label><div class="bsr"><select id="lcc_book_select" class="sel" onchange="selectBook()"><option value="">-- Sélectionner --</option></select><button class="small-btn" onclick="openAddBookModal()">+ Nouveau</button><button class="small-btn" id="lcc_remove_btn" onclick="removeLccBook()" style="display:none;border-color:var(--red);color:var(--redl)" title="Retirer ce livre de la journée">✕</button></div></div>
             <div id="lcc_book_progress" style="display:none" class="bprog"></div>
             <div id="lcc_month_books" class="lcc-month-books"></div>
@@ -1610,10 +1611,11 @@ function renderTodayFields() {
   loadBooksDropdown();
   if(todayData.lcc_book_id){
     setVal('lcc_book_select',todayData.lcc_book_id);
-    showBookProgress(todayData.lcc_book_id);
+    showBookProgress(todayData.lcc_book_id); lccSyncReached();
     const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='inline-flex';
   } else {
     const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='none';
+    const rr=document.getElementById('lcc_reached'); if(rr) rr.value='';
   }
   setToggleDisplay('paa',todayData.paa);
   document.getElementById('paa_details').style.display=todayData.paa?'block':'none';
@@ -2056,6 +2058,21 @@ function loadVerseDropdown() {
 function pickSavedVerse() { const id=document.getElementById('verse_select').value; const v=savedVerses.find(x=>x.id===id); if(!v) return; setVal('verse_text',v.text); setVal('verse_ref',v.ref||''); }
 
 // ========== BOOKS ==========
+function lccBase(){
+  const id=(document.getElementById('lcc_book_select')||{}).value; const b=books.find(x=>x.id===id); if(!b) return null;
+  const e=allEntries[getDateKey(currentDate)]; const prev=(e&&e.lcc_book_id===id)?(e.lcc_pages||0):0;
+  return Math.max(0,(b.pagesRead||0)-prev);
+}
+function lccFromReached(){
+  const r=document.getElementById('lcc_reached'); const base=lccBase();
+  if(base===null||r.value===''){setVal('lcc_pages',0);return;}
+  setVal('lcc_pages',Math.max(0,(parseInt(r.value)||0)-base));
+}
+function lccSyncReached(){
+  const r=document.getElementById('lcc_reached'); if(!r) return; const base=lccBase();
+  const p=parseInt(gv('lcc_pages'))||0;
+  r.value=(base===null||p===0)?'':(base+p);
+}
 function loadBooksDropdown() {
   const sel=document.getElementById('lcc_book_select'); if(!sel) return;
   const cur=todayData.lcc_book_id||''; sel.innerHTML='<option value="">-- Sélectionner --</option>';
@@ -2064,7 +2081,7 @@ function loadBooksDropdown() {
 }
 function selectBook() {
   const id=document.getElementById('lcc_book_select').value;
-  todayData.lcc_book_id=id; showBookProgress(id);
+  todayData.lcc_book_id=id; showBookProgress(id); lccFromReached();
   const btn=document.getElementById('lcc_remove_btn');
   if(btn) btn.style.display=id?'inline-flex':'none';
 }
@@ -2392,7 +2409,7 @@ function collectCurrentFormData() {
 function saveCurrentEntry() { const key=getDateKey(currentDate); allEntries[key]=JSON.parse(JSON.stringify(todayData)); }
 function saveEntry() {
   collectCurrentFormData(); saveCurrentEntry(); saveToStorage();
-  loadBooksDropdown(); renderBooksView(); renderMonthBooks(); showBookProgress(todayData.lcc_book_id);
+  loadBooksDropdown(); renderBooksView(); renderMonthBooks(); showBookProgress(todayData.lcc_book_id); lccSyncReached();
   const fb=document.getElementById('save-feedback');
   fb.textContent=`✓ Entrée du ${formatDateFR(currentDate)} sauvegardée`; fb.style.display='block';
   setTimeout(()=>fb.style.display='none',3000);
