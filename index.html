@@ -545,10 +545,9 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="card">
           <div class="card-hd"><div class="badge">5</div><div><div class="card-title">Littérature Chrétienne (LCC)</div></div></div>
           <div class="card-bd">
-            <div class="frow"><label>Page atteinte</label><div class="cg"><input type="number" id="lcc_reached" class="ci" value="" min="0" placeholder="n° de page" oninput="lccFromReached()"></div></div>
-            <div class="frow"><label>Pages lues (auto)</label><div class="cg"><input type="number" id="lcc_pages" class="ci" value="0" min="0" readonly></div></div>
-            <div class="frow-col"><label>Livre en cours</label><div class="bsr"><select id="lcc_book_select" class="sel" onchange="selectBook()"><option value="">-- Sélectionner --</option></select><button class="small-btn" onclick="openAddBookModal()">+ Nouveau</button><button class="small-btn" id="lcc_remove_btn" onclick="removeLccBook()" style="display:none;border-color:var(--red);color:var(--redl)" title="Retirer ce livre de la journée">✕</button></div></div>
-            <div id="lcc_book_progress" style="display:none" class="bprog"></div>
+            <div id="lcc_rows"></div>
+            <div class="bsr" style="margin-top:6px"><button class="small-btn" onclick="addLccRow()">+ Ajouter un livre lu</button><button class="small-btn" onclick="openAddBookModal()">+ Nouveau livre</button></div>
+            <div class="frow"><label>Total pages lues</label><div class="cg"><input type="number" id="lcc_pages" class="ci" value="0" min="0" readonly></div></div>
             <div id="lcc_month_books" class="lcc-month-books"></div>
           </div>
         </div>
@@ -1607,16 +1606,7 @@ function renderTodayFields() {
   renderAllNCButtons();
   setToggleDisplay('vm',todayData.vm);
   updateLbSummary();
-  setVal('lcc_pages',todayData.lcc_pages||0);
   loadBooksDropdown();
-  if(todayData.lcc_book_id){
-    setVal('lcc_book_select',todayData.lcc_book_id);
-    showBookProgress(todayData.lcc_book_id); lccSyncReached();
-    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='inline-flex';
-  } else {
-    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='none';
-    const rr=document.getElementById('lcc_reached'); if(rr) rr.value='';
-  }
   setToggleDisplay('paa',todayData.paa);
   document.getElementById('paa_details').style.display=todayData.paa?'block':'none';
   setVal('paa_title',todayData.paa_title||'');
@@ -2027,15 +2017,6 @@ function rdqdDeleteSession(id) {
   renderRdqdSessions();
 }
 
-// ========== LCC REMOVE BOOK ==========
-function removeLccBook() {
-  todayData.lcc_book_id = '';
-  setVal('lcc_book_select', '');
-  document.getElementById('lcc_book_progress').style.display='none';
-  const btn = document.getElementById('lcc_remove_btn');
-  if (btn) btn.style.display='none';
-}
-
 // ========== SAVED VERSES ==========
 function openAddVerseModal() { setVal('new_verse_text',''); setVal('new_verse_ref',''); document.getElementById('modal-verse').style.display='flex'; setTimeout(()=>document.getElementById('new_verse_text').focus(),100); }
 function addVerse() {
@@ -2058,47 +2039,87 @@ function loadVerseDropdown() {
 function pickSavedVerse() { const id=document.getElementById('verse_select').value; const v=savedVerses.find(x=>x.id===id); if(!v) return; setVal('verse_text',v.text); setVal('verse_ref',v.ref||''); }
 
 // ========== BOOKS ==========
-function lccBase(){
-  const id=(document.getElementById('lcc_book_select')||{}).value; const b=books.find(x=>x.id===id); if(!b) return null;
-  const e=allEntries[getDateKey(currentDate)]; const prev=(e&&e.lcc_book_id===id)?(e.lcc_pages||0):0;
-  return Math.max(0,(b.pagesRead||0)-prev);
+function lccItems(e){
+  if(!e) return [];
+  if(Array.isArray(e.lcc_items)) return e.lcc_items.filter(i=>i&&i.id);
+  return e.lcc_book_id?[{id:e.lcc_book_id,pages:e.lcc_pages||0}]:[];
 }
-function lccFromReached(){
-  const r=document.getElementById('lcc_reached'); const base=lccBase();
-  if(base===null||r.value===''){setVal('lcc_pages',0);return;}
-  setVal('lcc_pages',Math.max(0,(parseInt(r.value)||0)-base));
+function lccBookBase(id){
+  const b=books.find(x=>x.id===id); if(!b) return 0;
+  const prev=lccItems(allEntries[getDateKey(currentDate)]).find(i=>i.id===id);
+  return Math.max(0,(b.pagesRead||0)-(prev?prev.pages||0:0));
 }
-function lccSyncReached(){
-  const r=document.getElementById('lcc_reached'); if(!r) return; const base=lccBase();
-  const p=parseInt(gv('lcc_pages'))||0;
-  r.value=(base===null||p===0)?'':(base+p);
+function lccRowOptions(sel,selectedId){
+  const used=Array.from(document.querySelectorAll('#lcc_rows select')).filter(x=>x!==sel).map(x=>x.value);
+  const prevIds=lccItems(allEntries[getDateKey(currentDate)]).map(i=>i.id);
+  sel.innerHTML='<option value="">-- Sélectionner un livre --</option>';
+  books.filter(b=>(!b.completed||b.id===selectedId||prevIds.includes(b.id))&&!used.includes(b.id)).forEach(b=>{
+    const o=document.createElement('option');o.value=b.id;o.textContent=b.title+(b.author?' — '+b.author:'');sel.appendChild(o);});
+  sel.value=selectedId||'';
 }
-function loadBooksDropdown() {
-  const sel=document.getElementById('lcc_book_select'); if(!sel) return;
-  const cur=todayData.lcc_book_id||''; sel.innerHTML='<option value="">-- Sélectionner --</option>';
-  books.filter(b=>!b.completed).forEach(b=>{const opt=document.createElement('option');opt.value=b.id;opt.textContent=`${b.title}${b.author?' — '+b.author:''}`;sel.appendChild(opt);});
-  if(cur) sel.value=cur;
+function addLccRow(id,reached){
+  const box=document.getElementById('lcc_rows'); if(!box) return;
+  const row=document.createElement('div'); row.className='lcc-row'; row.style.cssText='border:1px solid var(--border,#444);border-radius:8px;padding:8px;margin-bottom:8px';
+  const sel=document.createElement('select'); sel.className='sel'; sel.style.width='100%';
+  const line=document.createElement('div'); line.style.cssText='display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap';
+  const lab=document.createElement('span'); lab.textContent='Page atteinte';
+  const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.className='ci'; inp.placeholder='n° de page'; inp.style.width='110px';
+  if(reached!==undefined&&reached!=='') inp.value=reached;
+  const pg=document.createElement('span'); pg.style.color='var(--gold)';
+  const del=document.createElement('button'); del.type='button'; del.className='small-btn'; del.textContent='✕'; del.title='Retirer ce livre de la journée'; del.style.cssText='border-color:var(--red);color:var(--redl);margin-left:auto';
+  const prog=document.createElement('div'); prog.className='bprog'; prog.style.display='none';
+  function refresh(){
+    const bk=books.find(x=>x.id===sel.value);
+    if(!bk){pg.textContent='';prog.style.display='none';lccUpdateTotal();return;}
+    const base=lccBookBase(bk.id); const r=inp.value===''?null:(parseInt(inp.value)||0);
+    const p=r===null?0:Math.max(0,r-base);
+    pg.textContent='= '+p+' page'+(p>1?'s':'')+' lue'+(p>1?'s':'');
+    const cur=Math.min(bk.totalPages,base+p); const pct=bk.totalPages?Math.min(100,Math.round(cur/bk.totalPages*100)):0;
+    prog.style.display='block';
+    prog.innerHTML='<div style="display:flex;justify-content:space-between"><span></span><span style="color:var(--gold)">'+cur+'/'+bk.totalPages+' p. ('+pct+'%)</span></div><div class="pb-outer"><div class="pb-inner" style="width:'+pct+'%"></div></div>';
+    prog.firstChild.firstChild.textContent=bk.title;
+    lccUpdateTotal();
+  }
+  sel.addEventListener('change',refresh); inp.addEventListener('input',refresh);
+  del.addEventListener('click',function(){row.remove();lccUpdateTotal();});
+  line.appendChild(lab);line.appendChild(inp);line.appendChild(pg);line.appendChild(del);
+  row.appendChild(sel);row.appendChild(line);row.appendChild(prog);box.appendChild(row);
+  lccRowOptions(sel,id||''); refresh();
 }
-function selectBook() {
-  const id=document.getElementById('lcc_book_select').value;
-  todayData.lcc_book_id=id; showBookProgress(id); lccFromReached();
-  const btn=document.getElementById('lcc_remove_btn');
-  if(btn) btn.style.display=id?'inline-flex':'none';
+function lccReadRows(){
+  const out=[];
+  document.querySelectorAll('#lcc_rows .lcc-row').forEach(function(row){
+    const id=row.querySelector('select').value; const v=row.querySelector('input').value;
+    if(!id||v==='') return;
+    out.push({id:id,pages:Math.max(0,(parseInt(v)||0)-lccBookBase(id))});
+  });
+  return out;
 }
-function showBookProgress(id) {
-  const el=document.getElementById('lcc_book_progress'); const b=books.find(x=>x.id===id);
-  if(!b){el.style.display='none';return;}
-  const pct=Math.min(100,Math.round(b.pagesRead/b.totalPages*100));
-  el.style.display='block';
-  el.innerHTML=`<div style="display:flex;justify-content:space-between"><span>${b.title}</span><span style="color:var(--gold)">${b.pagesRead}/${b.totalPages} p. (${pct}%)</span></div><div class="pb-outer"><div class="pb-inner" style="width:${pct}%"></div></div>`;
+function lccUpdateTotal(){ setVal('lcc_pages',lccReadRows().reduce((a,i)=>a+i.pages,0)); }
+function renderLccRows(){
+  const box=document.getElementById('lcc_rows'); if(!box) return; box.innerHTML='';
+  lccItems(todayData).forEach(function(i){ addLccRow(i.id,lccBookBase(i.id)+(i.pages||0)); });
+  lccUpdateTotal();
 }
+function loadBooksDropdown(){ renderLccRows(); }
+function lccApplyToBooks(prevItems,newItems){
+  const touched=new Set();
+  prevItems.forEach(function(i){const b=books.find(x=>x.id===i.id);if(b){b.pagesRead=(b.pagesRead||0)-(i.pages||0);touched.add(b.id);}});
+  newItems.forEach(function(i){const b=books.find(x=>x.id===i.id);if(b){b.pagesRead=(b.pagesRead||0)+(i.pages||0);touched.add(b.id);}});
+  touched.forEach(function(id){const b=books.find(x=>x.id===id);
+    b.pagesRead=Math.max(0,Math.min(b.pagesRead,b.totalPages));
+    if(!b.completed&&b.totalPages>0&&b.pagesRead>=b.totalPages){b.completed=true;b.completedDate=getDateKey(currentDate);b.readCount=(b.readCount||0)+1;}});
+}
+function showBookProgress(){}
 function removeBookFromMonth(bookId) {
   const mk = currentDate.getFullYear()+'-'+String(currentDate.getMonth()+1).padStart(2,'0');
   // 1. Effacer les entrées du mois pour ce livre
   Object.keys(allEntries).filter(k=>k.startsWith(mk)).forEach(function(k){
-    if(allEntries[k].lcc_book_id === bookId) {
-      allEntries[k].lcc_book_id = '';
-      allEntries[k].lcc_pages = 0;
+    const its=lccItems(allEntries[k]);
+    if(its.some(i=>i.id===bookId)) {
+      const rest=its.filter(i=>i.id!==bookId);
+      allEntries[k].lcc_items=rest; allEntries[k].lcc_book_id=rest.length?rest[0].id:'';
+      allEntries[k].lcc_pages=rest.reduce((a,i)=>a+(i.pages||0),0);
     }
   });
   // 2. Ajouter à la liste noire du mois pour empêcher le carry-over de le réafficher
@@ -2110,11 +2131,10 @@ function removeBookFromMonth(bookId) {
     b.pagesRead = 0; b.completed = false; b.completedDate = null;
   }
   // 4. Reset le formulaire du jour si besoin
-  if(todayData.lcc_book_id === bookId) {
-    todayData.lcc_book_id = ''; todayData.lcc_pages = 0;
-    setVal('lcc_book_select',''); setVal('lcc_pages','0');
-    const rb=document.getElementById('lcc_remove_btn'); if(rb) rb.style.display='none';
-    document.getElementById('lcc_book_progress').style.display='none';
+  if(lccItems(todayData).some(i=>i.id===bookId)) {
+    const rest=lccItems(todayData).filter(i=>i.id!==bookId);
+    todayData.lcc_items=rest; todayData.lcc_book_id=rest.length?rest[0].id:''; todayData.lcc_pages=rest.reduce((a,i)=>a+(i.pages||0),0);
+    renderLccRows();
   }
   saveToStorage();
   renderMonthBooks();
@@ -2188,13 +2208,11 @@ function getActiveBooksForDate(dateKey) {
   const lastTouched = {}; // dernière date où le livre a été lu
 
   Object.entries(allEntries).forEach(([k, e]) => {
-    if (!e.lcc_book_id) return;
-    if (!lastTouched[e.lcc_book_id] || k > lastTouched[e.lcc_book_id]) lastTouched[e.lcc_book_id] = k;
-    if (k.startsWith(mk)) {
-      bookTouchedInMonth.add(e.lcc_book_id);
-    } else if (k < mk) {
-      bookTouchedBefore.add(e.lcc_book_id);
-    }
+    lccItems(e).forEach(function(it){
+      if (!lastTouched[it.id] || k > lastTouched[it.id]) lastTouched[it.id] = k;
+      if (k.startsWith(mk)) bookTouchedInMonth.add(it.id);
+      else if (k < mk) bookTouchedBefore.add(it.id);
+    });
   });
 
   // Mois de fin d'un livre ('' si pas encore fini)
@@ -2385,11 +2403,10 @@ function collectCurrentFormData() {
   todayData.nc_ps = todayData.ps_aspects && todayData.ps_aspects.length > 0 && todayData.ps_aspects.every(a => a.nc);
   todayData.bible_selection=JSON.parse(JSON.stringify(bibleSelection));
   todayData.lb_count=countBibleChapters(bibleSelection);
-  const prevPages=(allEntries[getDateKey(currentDate)]?.lcc_pages)||0;
-  const prevBook=(allEntries[getDateKey(currentDate)]?.lcc_book_id)||'';
-  todayData.lcc_pages=parseInt(gv('lcc_pages'))||0;
-  todayData.lcc_book_id=gv('lcc_book_select');
-  if(todayData.lcc_book_id){const book=books.find(b=>b.id===todayData.lcc_book_id);if(book){if(prevBook===todayData.lcc_book_id) book.pagesRead=book.pagesRead-prevPages+todayData.lcc_pages; else book.pagesRead+=todayData.lcc_pages; book.pagesRead=Math.max(0,Math.min(book.pagesRead,book.totalPages)); if(!book.completed&&book.pagesRead>=book.totalPages){book.completed=true;book.completedDate=getDateKey(currentDate);book.readCount=(book.readCount||0)+1;}}}
+  const items=lccReadRows();
+  todayData.lcc_items=items;
+  todayData.lcc_pages=items.reduce((a,i)=>a+i.pages,0);
+  todayData.lcc_book_id=items.length?items[0].id:'';
   todayData.paa_min=toMinutes(gv('paa_h'),gv('paa_m'));
   todayData.paa_title=gv('paa_title').trim();
   todayData.nc_paa=!!todayData.nc_paa;
@@ -2406,10 +2423,10 @@ function collectCurrentFormData() {
   todayData.verse_text=gv('verse_text').trim();
   todayData.verse_ref=gv('verse_ref').trim();
 }
-function saveCurrentEntry() { const key=getDateKey(currentDate); allEntries[key]=JSON.parse(JSON.stringify(todayData)); }
+function saveCurrentEntry() { const key=getDateKey(currentDate); try{lccApplyToBooks(lccItems(allEntries[key]),lccItems(todayData));}catch(e){console.warn(e);} allEntries[key]=JSON.parse(JSON.stringify(todayData)); }
 function saveEntry() {
   collectCurrentFormData(); saveCurrentEntry(); saveToStorage();
-  loadBooksDropdown(); renderBooksView(); renderMonthBooks(); showBookProgress(todayData.lcc_book_id); lccSyncReached();
+  loadBooksDropdown(); renderBooksView(); renderMonthBooks();
   const fb=document.getElementById('save-feedback');
   fb.textContent=`✓ Entrée du ${formatDateFR(currentDate)} sauvegardée`; fb.style.display='block';
   setTimeout(()=>fb.style.display='none',3000);
@@ -2539,7 +2556,7 @@ function renderStatsVsGoals(entries, period, mk) {
   const mg=goals.monthly;
   const comparisons=[
     {label:'Chapitres Bible',    actual:sum(v=>v.lb_count),          goal:mg.lb_count,         unit:'ch.'},
-    {label:'Livres LCC',         actual:cnt(v=>v.lcc_book_id&&v.lcc_pages>0), goal:mg.lcc_books, unit:'livres'},
+    {label:'Livres LCC',         actual:cnt(v=>lccItems(v).length>0&&v.lcc_pages>0), goal:mg.lcc_books, unit:'livres'},
     {label:'Pages LCC',          actual:sum(v=>v.lcc_pages),         goal:mg.lcc_pages,        unit:'p.'},
     {label:'Prière seule',       actual:sum(v=>v.ps_min),            goal:mg.ps_min,           unit:'min', fmt:true},
     {label:'PAA',                actual:sum(v=>v.paa_min),           goal:mg.paa_min,          unit:'min', fmt:true},
@@ -3305,7 +3322,7 @@ function exportExcel(type){
 function exportToCSV(){
   const entries=Object.entries(allEntries).sort(([a],[b])=>a.localeCompare(b));
   const headers=['Date','RDQD','Meditation(min)','PriereSeule(min)','VM','Chapitres','Pages_LCC','Livre','PAA(min)','Confession','Enseignements','Evangelisation','Traites','Jeune','Don($)'];
-  const rows=entries.map(([k,v])=>{const b=books.find(x=>x.id===v.lcc_book_id);return[k,v.rdqd_count||0,v.rdqd_min||0,v.ps_min||0,v.vm===true?'Oui':v.vm===false?'Non':'',v.lb_count||0,v.lcc_pages||0,b?b.title:'',v.paa_min||0,v.confession===true?'Oui':v.confession===false?'Non':'',v.enseignement_count||0,v.evang_count||0,v.traites_count||0,v.fast||'',v.don_amount||0].map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',');});
+  const rows=entries.map(([k,v])=>{const b={title:lccItems(v).map(i=>(books.find(x=>x.id===i.id)||{}).title||'').filter(Boolean).join(' + ')};return[k,v.rdqd_count||0,v.rdqd_min||0,v.ps_min||0,v.vm===true?'Oui':v.vm===false?'Non':'',v.lb_count||0,v.lcc_pages||0,b?b.title:'',v.paa_min||0,v.confession===true?'Oui':v.confession===false?'Non':'',v.enseignement_count||0,v.evang_count||0,v.traites_count||0,v.fast||'',v.don_amount||0].map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',');});
   const csv=[headers.join(','),...rows].join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
